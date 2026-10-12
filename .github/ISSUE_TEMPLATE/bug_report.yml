@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible problem with the plugin
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the expected and actual behavior.
+    validations:
+      required: true
+  - type: input
+    id: musescore
+    attributes:
+      label: MuseScore version
+      placeholder: e.g. 4.x.y
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: e.g. Windows 11, macOS, Linux
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: 1. Open a test score...\n2. Launch the plugin...\n3. Click Apply...
+    validations:
+      required: true
+  - type: textarea
+    id: score
+    attributes:
+      label: Relevant score details
+      description: Mention staves, voices, ties, chords, and selection settings. Do not upload copyrighted or private scores without permission.
+    validations:
+      required: false

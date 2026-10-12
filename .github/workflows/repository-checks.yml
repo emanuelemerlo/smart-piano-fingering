@@ -1,0 +1,25 @@
+name: Repository checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  basic-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required project files
+        run: |
+          test -s smart-piano-fingering.qml
+          test -s smart-piano-fingering.png
+          test -s README.md
+          test -s LICENSE
+          test -s CHANGELOG.md
+      - name: Check thumbnail metadata reference
+        run: grep -F 'thumbnailName: "smart-piano-fingering.png"' smart-piano-fingering.qml
+      - name: Check basic QML structure
+        run: |
+          grep -F 'import MuseScore 3.0' smart-piano-fingering.qml
+          grep -F 'function createSmartPianoFingeringCore()' smart-piano-fingering.qml
+          grep -F 'function createMuseScoreAdapter(api)' smart-piano-fingering.qml

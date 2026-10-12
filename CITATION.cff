@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use Smart Piano Fingering, please cite or acknowledge this software."
+title: "Smart Piano Fingering"
+authors:
+  - family-names: Merlo
+    given-names: Emanuele
+    affiliation: Independent developer
+version: 1.0.0
+date-released: 2026-10-12
+license: GPL-3.0-only
+type: software
+repository-code: "https://github.com/emanuelemerlo/smart-piano-fingering"
