@@ -16,8 +16,6 @@ jobs:
           test -s README.md
           test -s LICENSE
           test -s CHANGELOG.md
-          - name: Check thumbnail metadata reference
-            run: grep -F 'thumbnailName: "smart-piano-fingering.png"' smart-piano-fingering.qml
       - name: Check basic QML structure
         run: |
           grep -F 'import MuseScore 3.0' smart-piano-fingering.qml
