@@ -9,6 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Check required project files
         run: |
           test -s smart-piano-fingering.qml
@@ -16,8 +21,12 @@ jobs:
           test -s README.md
           test -s LICENSE
           test -s CHANGELOG.md
+
       - name: Check basic QML structure
         run: |
           grep -F 'import MuseScore 3.0' smart-piano-fingering.qml
           grep -F 'function createSmartPianoFingeringCore()' smart-piano-fingering.qml
           grep -F 'function createMuseScoreAdapter(api)' smart-piano-fingering.qml
+
+      - name: Unit tests
+        run: node tests/run-tests.js
