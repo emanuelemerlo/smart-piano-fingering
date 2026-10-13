@@ -1,7 +1,15 @@
 # Security policy
 
-Smart Piano Fingering is a local MuseScore plugin. No supported security contact or private vulnerability intake has been configured for this repository yet.
+## Scope
 
-If you discover a security issue, avoid posting sensitive personal data or private score content in a public issue. Contact the repository owner privately through a verified contact channel before disclosing details publicly.
+Smart Piano Fingering is a MuseScore plugin that reads the open score and writes fingering text elements. It makes no network requests and does not access files outside what MuseScore exposes to plugins.
 
-Please do not assume that score files or plugin input are safe to share publicly; sanitize examples before attaching them to a report.
+## Reporting a vulnerability
+
+Please do not open a public issue for a security problem. Use GitHub's **Report a vulnerability** (Security tab → *Advisories*) on this repository. If that is unavailable, contact the maintainer through the e-mail address in the header of `smart-piano-fingering.qml`.
+
+Include the plugin version, MuseScore version and OS, and steps to reproduce. You can expect an acknowledgement within a reasonable time; this is a volunteer-maintained project and no response time is guaranteed.
+
+## Supported versions
+
+Only the latest release receives fixes.

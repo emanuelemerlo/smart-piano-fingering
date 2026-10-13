@@ -12,6 +12,9 @@
 //  repository root for the complete license text.
 //  This program comes with ABSOLUTELY NO WARRANTY.
 //
+//  The fingering algorithm was originally derived from PianoPlayer by Marco Musy
+//  (MIT License) and has since been substantially modified and extended.
+//
 //=============================================================================
 
 import QtQuick 2.9
@@ -20,19 +23,19 @@ import QtQuick.Layouts 1.3
 import MuseScore 3.0
 
 MuseScore {
-    version: "1.0"
+    version: "1.1.0"
     description: qsTr("Inserts piano fingering (1-5) for the right and left hand into the open score.")
     menuPath: "Plugins.SmartPianoFingering"   // MuseScore 3 only; ignored by MuseScore 4
-	title: "Smart Piano Fingering"
+    title: "Smart Piano Fingering"
     categoryCode: "Piano fingering"
     thumbnailName: "smart-piano-fingering.png"
     pluginType: "dialog"
     requiresScore: true
     width: 400
-    height: 360
+    height: 400
 
     Component.onCompleted: {
-        if (mscoreMajorVersion >= 4 && mscoreMinorVersion >= 4) {
+        if (mscoreMajorVersion > 4 || (mscoreMajorVersion === 4 && mscoreMinorVersion >= 4)) {
             title = qsTr("Smart Piano Fingering");
             categoryCode = "composing-arranging-tools";
         }
@@ -41,6 +44,8 @@ MuseScore {
     property var handSizes: ["XXS", "XS", "S", "M", "L", "XL", "XXL"]
     property bool hasSelection: false
     property bool busy: false
+    property bool cancelRequested: false
+    property var runCtx: null
 
     // Dynamic SystemPalette: adapts colors to MuseScore's active theme (Light/Dark)
     SystemPalette {
@@ -48,12 +53,25 @@ MuseScore {
         colorGroup: SystemPalette.Active
     }
 
+    SystemPalette {
+        id: disabledPalette
+        colorGroup: SystemPalette.Disabled
+    }
+
+    // Keep "Selection only" in sync when the (non-modal) dialog stays open
+    onScoreStateChanged: {
+        if (state && state.selectionChanged) { hasSelection = selectionRange() !== null; }
+    }
+
     function selectionRange() {
         try {
             var sel = curScore.selection;
             if (sel && sel.isRange && sel.startSegment) {
                 var to = sel.endSegment ? sel.endSegment.tick : 0x7fffffff;
-                return { from: sel.startSegment.tick, to: to };
+                var n = curScore.nstaves;
+                var sFrom = (sel.startStaff !== undefined) ? sel.startStaff : 0;
+                var sTo = (sel.endStaff !== undefined) ? sel.endStaff : n;
+                return { from: sel.startSegment.tick, to: to, staffFrom: sFrom, staffTo: sTo };
             }
         } catch (e) { }
         return null;
@@ -69,10 +87,34 @@ MuseScore {
         status.text = n === 0 ? qsTr("No open score found.") : qsTr("Staves in score: ") + n;
     }
 
+    // ---------------------------------------------------------------- run control
+    // The calculation runs in short slices driven by a Timer so that the dialog stays responsive,
+    // shows progress and can be stopped. Nothing is written to the score until all slices are done.
+
+    Timer {
+        id: worker
+        interval: 1
+        repeat: true
+        running: false
+        onTriggered: runSlice()
+    }
+
+    function failRun(err) {
+        worker.stop();
+        if (runCtx) {
+            for (var j = 0; j < runCtx.jobs.length; j++) {
+                try { runCtx.jobs[j].gen.finish(); } catch (e) { }
+            }
+        }
+        runCtx = null;
+        busy = false;
+        status.text = qsTr("Error: ") + err;
+        console.log("SmartPianoFingering error: " + err + (err && err.stack ? "\n" + err.stack : ""));
+    }
+
     function applyFingering() {
+        if (busy) { return; }
         if (!curScore) { status.text = qsTr("No open score found."); return; }
-        busy = true;
-        status.text = qsTr("Calculating...");
         try {
             var core = createSmartPianoFingeringCore();
             var adapter = createMuseScoreAdapter({
@@ -81,32 +123,120 @@ MuseScore {
             });
             var size = handSizes[sizeBox.currentIndex];
             var keep = keepExisting.checked;
-            var range = (onlySelection.checked && hasSelection) ? selectionRange() : null;
+            var div = division > 0 ? division : 480;
+
+            var range = null;
+            if (onlySelection.checked) {
+                range = selectionRange();   // re-read now: the dialog is non-modal
+                if (!range) { status.text = qsTr("No range selection found."); return; }
+            }
+
+            var hands = [["right", rhStaff.value - 1], ["left", lhStaff.value - 1]];
+            var targets = [];
+            var notes = [];
+            for (var h = 0; h < hands.length; h++) {
+                var idx = hands[h][1];
+                if (idx < 0) { continue; }
+                if (h === 1 && idx === hands[0][1]) { continue; }
+                if (range && (idx < range.staffFrom || idx >= range.staffTo)) {
+                    notes.push(qsTr("staff ") + (idx + 1) + qsTr(" is outside the selection"));
+                    continue;
+                }
+                if (!adapter.isPitchedStaff(idx)) {
+                    notes.push(qsTr("staff ") + (idx + 1) + qsTr(" is a percussion staff"));
+                    continue;
+                }
+                targets.push({ side: hands[h][0], idx: idx });
+            }
+            if (!targets.length) {
+                status.text = qsTr("Nothing to do") + (notes.length ? " (" + notes.join("; ") + ")" : "") + ".";
+                return;
+            }
+
+            // With a selection, only the selected region plus some musical context is processed.
+            var win = null;
+            if (range) {
+                var margin = 12 * div;
+                win = { from: Math.max(0, range.from - margin), to: range.to + margin };
+            }
+
+            var staffList = [];
+            for (var t = 0; t < targets.length; t++) { staffList.push(targets[t].idx); }
+            var data = adapter.readStaves(staffList, keep, win);
 
             var jobs = [];
-            var hands = [["right", rhStaff.value - 1], ["left", lhStaff.value - 1]];
-            for (var h = 0; h < hands.length; h++) {
-                if (hands[h][1] < 0) { continue; }
-                if (h === 1 && hands[1][1] === hands[0][1]) { continue; }
-                var data = adapter.readStaff(hands[h][1], keep);
-                if (!data.items.length) { continue; }
-                var seq = core.buildSequence(data.items, 0.05);
-                core.generate(seq, hands[h][0], size);
-                jobs.push({ seq: seq, refs: data.refs });
+            var total = 0;
+            for (var k = 0; k < targets.length; k++) {
+                var d = data[targets[k].idx];
+                if (!d || !d.items.length) { continue; }
+                var seq = core.buildSequence(d.items, 0.05);
+                jobs.push({ seq: seq, refs: d.refs, gen: core.createGenerator(seq, targets[k].side, size) });
+                total += seq.length;
             }
+            if (!jobs.length) { status.text = qsTr("No notes found."); return; }
 
-            var written = 0;
+            runCtx = { adapter: adapter, keep: keep, range: range, jobs: jobs,
+                       jobIndex: 0, done: 0, total: total, notes: notes };
+            cancelRequested = false;
+            progress.value = 0;
+            status.text = qsTr("Calculating...");
+            busy = true;
+            worker.start();
+        } catch (err) {
+            failRun(err);
+        }
+    }
+
+    function runSlice() {
+        if (!runCtx) { worker.stop(); return; }
+        try {
+            if (cancelRequested) {
+                failRun(qsTr("stopped by user"));
+                status.text = qsTr("Stopped. Nothing was written.");
+                return;
+            }
+            var t0 = Date.now();
+            while (Date.now() - t0 < 30) {
+                var job = runCtx.jobs[runCtx.jobIndex];
+                if (!job) { break; }
+                if (!job.gen.step()) { runCtx.jobIndex++; }
+                runCtx.done++;
+            }
+            progress.value = runCtx.total > 0 ? runCtx.done / runCtx.total : 1;
+            if (runCtx.jobIndex >= runCtx.jobs.length) {
+                worker.stop();
+                commitRun();
+            }
+        } catch (err) {
+            failRun(err);
+        }
+    }
+
+    function commitRun() {
+        var ctx = runCtx;
+        var written = 0, skipped = 0;
+        var cmdOpen = false;
+        try {
             curScore.startCmd();
-            for (var j = 0; j < jobs.length; j++) {
-                written += adapter.writeFingerings(jobs[j].seq, jobs[j].refs, keep, range);
+            cmdOpen = true;
+            for (var j = 0; j < ctx.jobs.length; j++) {
+                var r = ctx.adapter.writeFingerings(ctx.jobs[j].seq, ctx.jobs[j].refs, ctx.keep, ctx.range);
+                written += r.written;
+                skipped += r.skipped;
             }
             curScore.endCmd();
-            status.text = qsTr("Done: ") + written + qsTr(" fingerings inserted (undo with Ctrl+Z).");
+            cmdOpen = false;
         } catch (err) {
-            status.text = qsTr("Error: ") + err;
-            console.log("SmartPianoFingering error: " + err + (err.stack ? "\n" + err.stack : ""));
+            if (cmdOpen) { try { curScore.endCmd(true); } catch (e2) { } }
+            failRun(err);
+            return;
         }
+        var msg = qsTr("Done: ") + written + qsTr(" fingerings inserted (undo with Ctrl+Z).");
+        if (skipped > 0) { msg += " " + skipped + qsTr(" note(s) with custom fingerings left untouched."); }
+        if (ctx.notes.length) { msg += " (" + ctx.notes.join("; ") + ")"; }
+        runCtx = null;
         busy = false;
+        status.text = msg;
     }
 
     Rectangle {
@@ -158,7 +288,7 @@ MuseScore {
                 enabled: hasSelection
                 contentItem: Text {
                     text: onlySelection.text
-                    color: onlySelection.enabled ? activePalette.windowText : activePalette.text.disabled
+                    color: onlySelection.enabled ? activePalette.windowText : disabledPalette.text
                     leftPadding: onlySelection.indicator.width + onlySelection.spacing
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -172,11 +302,19 @@ MuseScore {
                 text: ""
             }
 
+            ProgressBar {
+                id: progress
+                Layout.fillWidth: true
+                from: 0; to: 1; value: 0
+                visible: busy
+            }
+
             Item { Layout.fillHeight: true }
 
             RowLayout {
                 Layout.alignment: Qt.AlignRight
                 spacing: 8
+                Button { text: qsTr("Stop"); visible: busy; onClicked: cancelRequested = true }
                 Button { text: qsTr("Close"); onClicked: quit() }
                 Button { text: qsTr("Apply"); enabled: !busy; highlighted: true; onClicked: applyFingering() }
             }
@@ -251,8 +389,12 @@ MuseScore {
             var chordId = 0;
             for (var g = 0; g < order.length; g++) {
                 var members = groups[order[g]].slice();
-                members.sort(function (a, b) { return a.pitch - b.pitch; });
+                members.sort(function (a, b) {
+                    return (a.pitch - b.pitch) || ((a.voice || 0) - (b.voice || 0)) || (a.id - b.id);
+                });
                 // Same pitch twice at the same onset (e.g. unison in two voices): keep one.
+                // Members are sorted by (pitch, voice), so the primary note is the lowest voice;
+                // the others are recorded in dups and receive NO fingering of their own.
                 var uniq = [];
                 for (i = 0; i < members.length; i++) {
                     var last = uniq.length ? uniq[uniq.length - 1] : null;
@@ -622,7 +764,10 @@ MuseScore {
 
         // ------------------------------------------------------------------ generation loop
         // Fills seq[i].finger for the whole sequence. Left-hand keys are mirrored internally.
-        function generate(seq, side, size, onProgress) {
+        // Incremental version of the generation loop: each step() fingers one note, so the caller
+        // can interleave work with UI updates. Left-hand keys are mirrored internally and restored
+        // by finish() (called automatically after the last step; safe to call again).
+        function createGenerator(seq, side, size) {
             var h = makeHand(side, size || "M");
             var n = seq.length;
             var originalX = [];
@@ -633,51 +778,73 @@ MuseScore {
                 seq[i].finger = 0;
             }
             h.chordAware = h.autodepth;
+            var pos = 0;
             var startFinger = 0;
             var out = [];
-            try {
-                for (i = 0; i < n; i++) {
-                    var an = seq[i];
-                    if (i > n - 11 && h.autodepth) {
-                        h.autodepth = false;
-                        h.depth = Math.max(3, Math.min(9, n - i));
-                    }
-                    var window = seq.slice(i, i + 9);
-                    while (window.length < 9) { window.push(window[window.length - 1]); }
+            var restored = false;
 
-                    h.context = seq.slice(Math.max(0, i - 64), i);
+            function finish() {
+                if (restored) { return; }
+                restored = true;
+                for (var k = 0; k < n; k++) { seq[k].x = originalX[k]; }
+            }
 
-                    if (an.anchor) {
-                        an.finger = an.anchor;
-                        h.startIsAnchor = true;
-                        out = optimizeSeq(h, window, an.anchor);
-                        h.startIsAnchor = false;
-                        startFinger = out.length > 1 ? out[1] : an.anchor;
-                    } else {
-                        var best = 0;
-                        if (i > n - 9) {
-                            if (out.length > 1) {
-                                best = out.splice(1, 1)[0];
-                                out[0] = best;
-                                startFinger = out.length > 1 ? out[1] : best;
-                            } else {
-                                out = optimizeSeq(h, window, startFinger);
-                                best = out[0];
-                                startFinger = out.length > 1 ? out[1] : out[0];
-                            }
+            function step() {
+                if (pos >= n) { finish(); return false; }
+                var i = pos;
+                var an = seq[i];
+                if (i > n - 11 && h.autodepth) {
+                    h.autodepth = false;
+                    h.depth = Math.max(3, Math.min(9, n - i));
+                }
+                var window = seq.slice(i, i + 9);
+                while (window.length < 9) { window.push(window[window.length - 1]); }
+
+                h.context = seq.slice(Math.max(0, i - 64), i);
+
+                if (an.anchor) {
+                    an.finger = an.anchor;
+                    h.startIsAnchor = true;
+                    out = optimizeSeq(h, window, an.anchor);
+                    h.startIsAnchor = false;
+                    startFinger = out.length > 1 ? out[1] : an.anchor;
+                } else {
+                    var best = 0;
+                    if (i > n - 9) {
+                        if (out.length > 1) {
+                            best = out.splice(1, 1)[0];
+                            out[0] = best;
+                            startFinger = out.length > 1 ? out[1] : best;
                         } else {
                             out = optimizeSeq(h, window, startFinger);
                             best = out[0];
                             startFinger = out.length > 1 ? out[1] : out[0];
                         }
-                        best = enforceChordConsistency(h, seq, i, best);
-                        out[0] = best;
-                        an.finger = best;
+                    } else {
+                        out = optimizeSeq(h, window, startFinger);
+                        best = out[0];
+                        startFinger = out.length > 1 ? out[1] : out[0];
                     }
-                    if (onProgress) { onProgress(i + 1, n); }
+                    best = enforceChordConsistency(h, seq, i, best);
+                    out[0] = best;
+                    an.finger = best;
                 }
+                pos++;
+                if (pos >= n) { finish(); return false; }
+                return true;
+            }
+
+            return { step: step, finish: finish, total: n, position: function () { return pos; } };
+        }
+
+        // Fills seq[i].finger for the whole sequence in one go (kept for tests / scripting).
+        function generate(seq, side, size, onProgress) {
+            var g = createGenerator(seq, side, size);
+            try {
+                while (g.step()) { if (onProgress) { onProgress(g.position(), seq.length); } }
+                if (onProgress) { onProgress(seq.length, seq.length); }
             } finally {
-                for (i = 0; i < n; i++) { seq[i].x = originalX[i]; }
+                g.finish();
             }
             return seq;
         }
@@ -686,6 +853,7 @@ MuseScore {
             keyPosition: keyPosition,
             buildSequence: buildSequence,
             generate: generate,
+            createGenerator: createGenerator,
             sizes: SIZE_FACTORS,
             internals: {
                 makeHand: makeHand, optimizeSeq: optimizeSeq, searchDP: searchDP, searchDFS: searchDFS,
@@ -702,22 +870,37 @@ MuseScore {
     function createMuseScoreAdapter(api) {
         var VOICES = 4;
 
-        function ticksOfChord(chord) {
+        // Duration of a chord in ticks. Whether chord.duration already includes the tuplet ratio is
+        // not guaranteed across MuseScore versions, so for tuplet chords the value is validated
+        // against the distance to the next element of the same voice (and the outcome is remembered).
+        var tupletScaled = null;
+
+        function nominalTicks(chord) {
             var ticks = 0;
             try {
                 ticks = chord.duration.ticks;
                 if (!(ticks > 0)) {
                     ticks = chord.duration.numerator / chord.duration.denominator * 4 * api.division;
                 }
-                // Tuplets: nominal duration times normalNotes/actualNotes.
-                var tup = chord.tuplet;
-                if (tup && tup.actualNotes > 0 && tup.normalNotes > 0) {
-                    ticks = ticks * tup.normalNotes / tup.actualNotes;
-                }
             } catch (e) {
                 ticks = 0;
             }
-            return ticks;
+            return ticks > 0 ? ticks : 0;
+        }
+
+        function chordTicks(chord, delta) {
+            var nominal = nominalTicks(chord);
+            if (!(nominal > 0)) { return 0; }
+            var tup = null;
+            try { tup = chord.tuplet; } catch (e) { tup = null; }
+            if (!(tup && tup.actualNotes > 0 && tup.normalNotes > 0)) { return nominal; }
+            var scaled = nominal * tup.normalNotes / tup.actualNotes;
+            if (delta > 0) {
+                var dn = Math.abs(delta - nominal);
+                var ds = Math.abs(delta - scaled);
+                if (Math.min(dn, ds) <= 2 && Math.abs(dn - ds) > 2) { tupletScaled = ds < dn; }
+            }
+            return tupletScaled === false ? nominal : scaled;
         }
 
         function fingeringElements(note) {
@@ -737,31 +920,83 @@ MuseScore {
             return /^[1-5]$/.test(plain) ? parseInt(plain, 10) : 0;
         }
 
-        // Reads all voices of a staff. Tied continuations are merged into the note that starts the
-        // tie (its sounding interval is extended). Returns { items, refs } where items feed
-        // SmartPianoFingering's buildSequence() and refs[id] = { note, tick }.
-        function readStaff(staffIdx, keepExisting) {
-            var items = [];
-            var refs = [];
+        function isPitchedStaff(idx) {
+            try {
+                var st = api.score.staves[idx];
+                if (st && st.part && st.part.hasDrumStaff === true) { return false; }
+            } catch (e) { }
+            return true;
+        }
+
+        function partKey(idx) {
+            try {
+                var st = api.score.staves[idx];
+                if (st && st.part && st.part.startTrack !== undefined) { return st.part.startTrack; }
+            } catch (e) { }
+            return null;
+        }
+
+        // Reads the target staves in one pass. Chords are assigned to the staff where they are
+        // DISPLAYED (cross-staff notes follow chord.staffMove), so they get the right hand.
+        // Tied continuations are merged into the note that starts the tie. Voice is recorded so
+        // unisons between voices can be fingered once, on the lowest voice.
+        // win = { from, to } in ticks (to exclusive) limits what is read; null = whole staff.
+        // Returns { <staffIdx>: { items, refs } } with refs[id] = { note, tick }.
+        function readStaves(targets, keepExisting, win) {
             var division = api.division > 0 ? api.division : 480;
-            for (var voice = 0; voice < VOICES; voice++) {
-                var cursor = api.score.newCursor();
-                cursor.staffIdx = staffIdx;
-                cursor.voice = voice;
-                cursor.rewind(api.Cursor.SCORE_START);
-                while (cursor.segment) {
-                    var el = cursor.element;
-                    if (el && el.type === api.Element.CHORD) {
-                        var tick = cursor.tick;
-                        var notes = el.notes;
+            var nst = api.score.nstaves;
+            var res = {};
+            var sources = {};
+            var t, d, s;
+            for (t = 0; t < targets.length; t++) {
+                res[targets[t]] = { items: [], refs: [] };
+                var pk = partKey(targets[t]);
+                for (d = -1; d <= 1; d++) {
+                    s = targets[t] + d;
+                    if (s < 0 || s >= nst) { continue; }
+                    // cross-staff moves only happen inside one part
+                    if (d !== 0 && pk !== null && partKey(s) !== null && partKey(s) !== pk) { continue; }
+                    sources[s] = true;
+                }
+            }
+
+            for (var key in sources) {
+                if (!sources.hasOwnProperty(key)) { continue; }
+                s = parseInt(key, 10);
+                for (var voice = 0; voice < VOICES; voice++) {
+                    var cursor = api.score.newCursor();
+                    cursor.staffIdx = s;
+                    cursor.voice = voice;
+                    cursor.rewind(api.Cursor.SCORE_START);
+                    var els = [];
+                    while (cursor.segment) {
+                        var el = cursor.element;
+                        if (el && (el.type === api.Element.CHORD || el.type === api.Element.REST)) {
+                            els.push({ tick: cursor.tick, el: el });
+                        }
+                        if (win && cursor.tick > win.to) { break; }
+                        if (!cursor.next()) { break; }
+                    }
+
+                    for (var e = 0; e < els.length; e++) {
+                        var item = els[e];
+                        if (item.el.type !== api.Element.CHORD) { continue; }
+                        var dest = s + (item.el.staffMove || 0);
+                        if (!res.hasOwnProperty(dest)) { continue; }
+                        var tick = item.tick;
+                        if (win && (tick < win.from || tick >= win.to)) { continue; }
+                        var delta = (e + 1 < els.length) ? els[e + 1].tick - tick : 0;
+                        var base = chordTicks(item.el, delta);
+                        var notes = item.el.notes;
+                        var out = res[dest];
                         for (var k = 0; k < notes.length; k++) {
                             var note = notes[k];
                             if (note.tieBack) { continue; }  // continuation of an earlier note
-                            var ticks = ticksOfChord(el);
+                            var ticks = base;
                             var guard = 0;
                             var tie = note.tieForward;
                             while (tie && tie.endNote && guard < 64) {
-                                ticks += ticksOfChord(tie.endNote.parent);
+                                ticks += chordTicks(tie.endNote.parent, 0);
                                 tie = tie.endNote.tieForward;
                                 guard++;
                             }
@@ -771,45 +1006,58 @@ MuseScore {
                                 var fs = fingeringElements(note);
                                 for (var q = 0; q < fs.length && !anchor; q++) { anchor = parseFinger(fs[q].text); }
                             }
-                            var id = refs.length;
-                            refs.push({ note: note, tick: tick });
-                            items.push({
+                            var id = out.refs.length;
+                            out.refs.push({ note: note, tick: tick });
+                            out.items.push({
                                 id: id, pitch: note.pitch, start: tick / division,
-                                end: (tick + ticks) / division, anchor: anchor
+                                end: (tick + ticks) / division, anchor: anchor, voice: voice
                             });
                         }
                     }
-                    if (!cursor.next()) { break; }
                 }
             }
-            return { items: items, refs: refs };
+            return res;
         }
 
         // Adds the computed fingerings. range = { from, to } in ticks (to exclusive) or null.
-        // Returns the number of fingerings written.
+        // Unison groups (same pitch and onset in several voices) get ONE fingering, on the lowest
+        // voice. A note whose group already has a fingering is never touched when keepExisting is
+        // on. When replacing, plain finger numbers (1-5) are replaced; groups carrying any other
+        // fingering text (e.g. "1-2" substitutions) are left alone and counted as skipped.
+        // Returns { written, skipped }.
         function writeFingerings(seq, refs, keepExisting, range) {
-            var written = 0;
+            var res = { written: 0, skipped: 0 };
             for (var i = 0; i < seq.length; i++) {
                 var n = seq[i];
                 if (!(n.finger >= 1 && n.finger <= 5)) { continue; }
                 var ids = [n.id].concat(n.dups || []);
+                var primary = refs[n.id];
+                if (range && (primary.tick < range.from || primary.tick >= range.to)) { continue; }
+
+                var numeric = [];
+                var custom = 0;
                 for (var d = 0; d < ids.length; d++) {
-                    var ref = refs[ids[d]];
-                    if (range && (ref.tick < range.from || ref.tick >= range.to)) { continue; }
-                    var existing = fingeringElements(ref.note);
-                    if (existing.length) {
-                        if (keepExisting) { continue; }  // user's fingering stays untouched
-                        for (var e = 0; e < existing.length; e++) { ref.note.remove(existing[e]); }
+                    var note = refs[ids[d]].note;
+                    var fe = fingeringElements(note);
+                    for (var x = 0; x < fe.length; x++) {
+                        if (parseFinger(fe[x].text) > 0) { numeric.push({ note: note, el: fe[x] }); }
+                        else { custom++; }
                     }
-                    var fingering = api.newElement(api.Element.FINGERING);
-                    fingering.text = String(n.finger);
-                    ref.note.add(fingering);
-                    written++;
                 }
+                if (numeric.length + custom > 0) {
+                    if (keepExisting) { continue; }
+                    if (custom > 0) { res.skipped++; continue; }
+                    for (var e = 0; e < numeric.length; e++) { numeric[e].note.remove(numeric[e].el); }
+                }
+                var fingering = api.newElement(api.Element.FINGERING);
+                fingering.text = String(n.finger);
+                primary.note.add(fingering);
+                res.written++;
             }
-            return written;
+            return res;
         }
 
-        return { readStaff: readStaff, writeFingerings: writeFingerings, parseFinger: parseFinger };
+        return { readStaves: readStaves, writeFingerings: writeFingerings, parseFinger: parseFinger,
+                 isPitchedStaff: isPitchedStaff };
     }
 }

@@ -1,26 +1,38 @@
 # Contributing
 
-Thanks for helping improve Smart Piano Fingering.
+Thank you for helping improve Smart Piano Fingering.
 
-## Before opening an issue
+## Ground rules
 
-- Check whether the issue has already been reported.
-- Include the exact MuseScore version and operating system.
-- Describe the score structure involved (number of staves, voices, chords, ties, and selection type).
-- Provide minimal reproduction steps. Remove personal or copyrighted score content before attaching files.
+- The plugin is a single QML file with an embedded JavaScript core (`createSmartPianoFingeringCore`) and a MuseScore adapter (`createMuseScoreAdapter`). Keep them free of UI dependencies so they stay testable in Node.
+- Keep `thumbnailName` in sync with the PNG file name.
+- When you change user-visible behaviour, add an entry under `[Unreleased]` in `CHANGELOG.md`.
+- Changes to the fingering algorithm must state their musical rationale and show before/after examples; the algorithm is intentionally stable between releases.
+
+## Development workflow
+
+1. Edit `smart-piano-fingering.qml`.
+2. Run the automated tests: `node tests/run-tests.js`.
+3. Copy the files to your MuseScore plugins folder and test on a **disposable score**.
+
+## Manual verification before a release
+
+Automated tests do not run MuseScore's QML runtime. Before tagging a release verify, and record the MuseScore version and OS used:
+
+- The plugin appears in the Plugins menu and opens without QML errors.
+- Right hand only, left hand only, both hands; single-staff and multi-staff scores.
+- Keep existing fingerings on and off, including a custom text such as `1-2`.
+- Selection only: a selection covering one staff and one covering both.
+- Chords, rests, multiple voices, **unisons between voices**, tied notes, tuplets, cross-staff notes.
+- A long score: dialog stays responsive, progress advances, **Stop** writes nothing.
+- Undo reverts the whole operation in one step.
+
+Do not list a MuseScore version as supported until it has been tested.
 
 ## Pull requests
 
-- Keep changes focused and explain the user-visible behavior change.
-- Preserve compatibility with the Qt/QML APIs available in the intended MuseScore versions.
-- Update `README.md` and `CHANGELOG.md` when behavior or user instructions change.
-- Do not add dependencies without explaining why they are required.
+Describe what changed and why, how you tested it, and tick the checklist in the PR template. Keep PRs focused.
 
-## Validation
+## License
 
-There is no standalone build process. Install the modified QML and thumbnail in a test MuseScore profile and run the manual checks in the README. Test on a disposable score and confirm Undo works. State clearly which MuseScore versions were tested; basic CI checks are not a substitute for host-application testing.
-
-
-## License of contributions
-
-By submitting a contribution intended for inclusion in this repository, you agree that it will be distributed under the project license, GNU GPL-3.0-only, unless the maintainers explicitly agree otherwise. Only submit material you have the right to contribute, and retain required third-party notices.
+By contributing you agree that your contribution is licensed under GPL-3.0-only, the license of this project.

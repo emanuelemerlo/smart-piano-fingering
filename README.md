@@ -1,94 +1,86 @@
 # Smart Piano Fingering
 
-MuseScore plugin that calculates and inserts piano fingering numbers (`1`–`5`) for the right and left hands in a score.
+MuseScore plugin that calculates and inserts piano fingering numbers (`1`–`5`) for the right and left hands.
 
-> **Status:** initial public repository packaging. The plugin has not been automatically tested against every MuseScore release; validate it in the MuseScore version you use before applying it to important scores.
+> **Status:** version 1.1.0. The fingering algorithm and the score-reading logic are covered by automated tests that run outside MuseScore (see [Testing](#testing)). The plugin as a whole has **not** been validated on every MuseScore release: try it on a copy of your score first.
 
 ## Features
 
-- Calculates fingerings for right and left hand staves.
-- Offers hand-size presets: `XXS`, `XS`, `S`, `M`, `L`, `XL`, `XXL`.
-- Can preserve existing fingerings or replace them.
-- Can limit changes to the current selection when MuseScore exposes a range selection.
-- Reads notes from all four voices on a staff and accounts for tied note continuations.
-- Uses the active MuseScore system palette for light/dark UI themes.
-- Inserts changes as a score command, so MuseScore Undo (`Ctrl+Z`) can revert the operation.
+- Right-hand and left-hand fingering, on any two staves you choose.
+- Hand-size presets: `XXS`, `XS`, `S`, `M`, `L`, `XL`, `XXL`.
+- Keeps your existing fingerings (and uses them as anchors for the calculation) or replaces them.
+- **Selection only** mode: processes just the selected region and staves, plus a few bars of musical context.
+- Reads all four voices of a staff, merges tied notes, handles tuplets.
+- **Unisons between voices** (same pitch, same onset, e.g. voice 1 and voice 2 on the same note) get a **single** fingering, written on the lowest voice.
+- **Cross-staff notes** are assigned to the staff where they are displayed, so they receive the correct hand.
+- Responsive dialog: progress bar and a **Stop** button; nothing is written to the score until the calculation is complete.
+- One undo step (`Ctrl+Z` / `Cmd+Z`) reverts the whole operation.
 
 ## Requirements
 
-- MuseScore with support for QML plugins and the `MuseScore 3.0` plugin API import.
+- MuseScore with QML plugin support (written against the MuseScore 4 plugin API; the `MuseScore 3.0` import is kept for compatibility, and MuseScore 3 may work but is untested).
 - A score must be open.
-- The plugin uses Qt Quick Controls and Layouts, as supplied by the host MuseScore installation.
-
-The source contains compatibility handling for MuseScore 3 and MuseScore 4 metadata, but this alone does not guarantee identical behavior on every version. See [Compatibility and testing](#compatibility-and-testing).
+- Qt Quick Controls and Layouts, as shipped with MuseScore.
 
 ## Installation
 
-1. Download `smart-piano-fingering.qml` and `smart-piano-fingering.png` from this repository (or download the repository ZIP).
-2. Copy both files into a directory used for MuseScore plugins. The exact user plugin directory varies by operating system and MuseScore version; consult the documentation for your installed version.
-3. In MuseScore, open the Plugins management dialog and enable **Smart Piano Fingering**. Restart MuseScore if the plugin list does not refresh.
-4. Open a score and launch **Smart Piano Fingering** from the Plugins menu.
+1. Download `smart-piano-fingering.qml` and `smart-piano-fingering.png` (or the repository ZIP / a release).
+2. Copy both files into your MuseScore plugins folder, for example:
+   - MuseScore 4: `Documents/MuseScore4/Plugins/`
+   - MuseScore 3: `Documents/MuseScore3/Plugins/`
 
-Keep the QML file and PNG thumbnail together. If MuseScore does not list the plugin, verify the plugin directory and check the MuseScore application log/console for QML errors.
+   The exact location depends on your OS and settings (check *Preferences → General → Folders*).
+3. In MuseScore open **Plugins → Manage plugins** (MuseScore 4: *Home → Plugins*), enable **Smart Piano Fingering**, and restart MuseScore if it does not appear.
+4. Open a score and run the plugin from the Plugins menu.
+
+Keep the QML file and the PNG together. If the plugin is not listed, check the plugin folder and the MuseScore log for QML errors.
 
 ## Usage
 
 1. Open the score and launch the plugin.
-2. Set the staff number for the right hand and, optionally, the left hand. The left-hand value `0` disables left-hand processing.
-3. Choose a hand-size preset. These are heuristic presets, not a clinical or individually measured hand model.
-4. Choose whether to keep existing fingerings. When enabled, existing simple finger numbers (`1`–`5`) are treated as anchors and are left unchanged.
-5. Enable **Selection only** if a range selection is available and you want to restrict written fingerings to that range.
-6. Click **Apply**. Review the result musically; use `Ctrl+Z` to undo the operation if needed.
+2. Set the staff number for the **right hand** and, optionally, the **left hand** (`0` = none).
+3. Choose a **hand size**. Presets are heuristic, not a measured hand model.
+4. **Keep existing fingerings**:
+   - *on* – existing fingerings are never touched; plain numbers `1`–`5` are used as anchors by the calculation.
+   - *off* – plain numbers `1`–`5` are replaced. Notes carrying any other fingering text (for example a substitution such as `1-2`) are left untouched and reported in the final message.
+5. **Selection only** – enabled when a range selection exists. Only the selected staves and time range are written; a few bars around the selection are read to give the algorithm context.
+6. Press **Apply**. Review the result musically; undo with `Ctrl+Z` if needed.
 
-### Important behavior notes
+Do not edit the score while the calculation is running (it usually takes a few seconds). Press **Stop** to abort; nothing is written in that case.
 
-- The algorithm provides suggested fingerings; it cannot replace a pianist's judgement, and some passages may need manual correction.
-- Selection filtering is applied when writing fingerings. The plugin may still read and calculate a larger staff sequence to preserve context for its algorithm.
-- The plugin's handling of existing fingerings is designed around plain numeric finger labels. Other text formats are not recognized as numeric anchors.
-- Always work on a copy or save your score before bulk changes.
+## Behaviour notes
+
+- The output is a *suggestion*. It cannot replace a pianist's judgement, and some passages need manual correction.
+- Fingerings are chosen per staff/hand. Notes of all voices on the staff are treated as played by that hand.
+- Grace notes are not fingered. Percussion staves are rejected.
+- The dialog uses the system colour palette, which may differ from MuseScore's own light/dark theme.
+- Always work on a copy or save the score before bulk changes.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `smart-piano-fingering.qml` | Plugin UI, fingering algorithm, and MuseScore adapter. |
-| `smart-piano-fingering.png` | Plugin thumbnail referenced by the QML metadata. |
+| `smart-piano-fingering.qml` | Plugin UI, fingering algorithm and MuseScore adapter. |
+| `smart-piano-fingering.png` | Plugin thumbnail referenced by `thumbnailName`. |
+| `tests/run-tests.js` | Node tests for the algorithm and the score adapter (mock score). |
 | `CHANGELOG.md` | Release history. |
-| `LICENSE` | GNU General Public License v3.0 (GPL-3.0-only). |
-| `AUTHORS.md` | Author and attribution information. |
+| `LICENSE` | GNU General Public License v3.0. |
+| `THIRD_PARTY_NOTICES.md` | Attribution for the algorithm's origin. |
+| `AUTHORS.md` | Authors and attribution. |
 | `CONTRIBUTING.md` | Contribution and validation guidance. |
 | `SECURITY.md` | Responsible reporting guidance. |
-| `.github/` | Issue templates, pull request template, and lightweight repository checks. |
+| `.github/` | Issue/PR templates and the repository checks workflow. |
 
-## Compatibility and testing
+## Testing
 
-This repository currently has no automated integration test harness because the plugin depends on MuseScore's embedded QML runtime and score API. The GitHub Actions workflow performs basic repository hygiene checks; it does **not** prove that the plugin runs correctly inside MuseScore.
+```bash
+node tests/run-tests.js
+```
 
-Before publishing a release, manually verify at least:
-
-- The plugin appears in the Plugins menu and opens without QML errors.
-- Right-hand only, left-hand only, and two-staff operation.
-- A single-staff score and a multi-staff score.
-- Existing fingerings with **Keep existing fingerings** both enabled and disabled.
-- A range selection with **Selection only** enabled.
-- Chords, rests, multiple voices, and tied notes.
-- Undo after applying the plugin.
-- The MuseScore versions and operating systems you intend to support.
-
-Record the exact MuseScore version, operating system, and test results in release notes. Do not claim a version as supported until it has been tested.
-
-## Development
-
-The plugin is implemented in a single QML file and embeds its JavaScript algorithm and MuseScore adapter. Edit `smart-piano-fingering.qml`, keeping the thumbnail filename in sync with `thumbnailName` in the plugin metadata.
-
-There is no separate build step. To test changes, install the edited files in the local MuseScore plugin directory and run them against a disposable score.
+The tests extract the embedded JavaScript from the QML file and run it against a mock score. They verify the algorithm and the adapter logic (unisons, ties, tuplets, cross-staff, selection window, keep/replace rules). They do **not** exercise MuseScore's QML runtime, so manual verification is still required before a release; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Smart Piano Fingering is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See [`LICENSE`](LICENSE) for the complete license text.
+GNU General Public License v3.0 only (`GPL-3.0-only`). See [`LICENSE`](LICENSE).
 
-Copyright (C) 2026 Emanuele Merlo.
-
-The GPL-3.0-only license permits use, study, modification, and redistribution under its terms. When distributing the program or derivative works, recipients must comply with the GPL, including its applicable source-code and license-notice requirements. The license is provided without warranty.
-
-Author and attribution details are available in [`AUTHORS.md`](AUTHORS.md).
+Copyright (C) 2026 Emanuele Merlo. The fingering algorithm was originally derived from PianoPlayer by Marco Musy (MIT License) and has been substantially modified and extended; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
