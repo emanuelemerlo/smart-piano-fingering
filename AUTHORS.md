@@ -13,4 +13,3 @@ Unless a file or asset carries a different notice, the project is released under
 ## Third-party materials
 
 - **PianoPlayer** by Marco Musy (MIT License) — the fingering algorithm was originally derived from it and has since been substantially modified and extended. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the notice.
-- **`smart-piano-fingering.png`** — before publishing, confirm that you hold the rights to redistribute this asset. If it comes from another author or source, record its creator, source and license here.
