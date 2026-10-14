@@ -2,7 +2,7 @@
 
 MuseScore plugin that calculates and inserts piano fingering numbers (`1`–`5`) for the right and left hands.
 
-> **Status:** version 1.1.0. The fingering algorithm and the score-reading logic are covered by automated tests that run outside MuseScore (see [Testing](#testing)). The plugin as a whole has **not** been validated on every MuseScore release: try it on a copy of your score first.
+> **Status:** version 1.1.0. The fingering algorithm and the score-reading logic are covered by automated tests, which also run the plugin inside MuseScore 4 on Linux, Windows and macOS (see [Testing](#testing)). The plugin as a whole has **not** been validated on every MuseScore release: try it on a copy of your score first.
 
 ## Features
 
@@ -63,21 +63,28 @@ Do not edit the score while the calculation is running (it usually takes a few s
 | `smart-piano-fingering.qml` | Plugin UI, fingering algorithm and MuseScore adapter. |
 | `smart-piano-fingering.png` | Plugin thumbnail referenced by `thumbnailName`. |
 | `tests/run-tests.js` | Node tests for the algorithm and the score adapter (mock score). |
+| `tests/qml-compat-check.js` | Static checks on the QML file and on version consistency. |
+| `tests/musescore-runtime.js` | Runs the real plugin inside MuseScore 4 (headless) and checks the exported fingerings. |
+| `tests/fixtures/` | Score used by the runtime test. |
 | `CHANGELOG.md` | Release history. |
 | `LICENSE` | GNU General Public License v3.0. |
 | `THIRD_PARTY_NOTICES.md` | Attribution for the algorithm's origin. |
 | `AUTHORS.md` | Authors and attribution. |
 | `CONTRIBUTING.md` | Contribution and validation guidance. |
 | `SECURITY.md` | Responsible reporting guidance. |
-| `.github/` | Issue/PR templates and the repository checks workflow. |
+| `.github/` | Issue/PR templates, the repository checks workflow and the cross-platform test workflow. |
 
 ## Testing
 
 ```bash
-node tests/run-tests.js
+node tests/run-tests.js          # algorithm + adapter, mock score (no MuseScore needed)
+node tests/qml-compat-check.js   # static checks on the QML file and version consistency
+node tests/musescore-runtime.js --musescore "<path to the MuseScore executable>"
 ```
 
-The tests extract the embedded JavaScript from the QML file and run it against a mock score. They verify the algorithm and the adapter logic (unisons, ties, tuplets, cross-staff, selection window, keep/replace rules). They do **not** exercise MuseScore's QML runtime, so manual verification is still required before a release; see [CONTRIBUTING.md](CONTRIBUTING.md).
+`run-tests.js` extracts the embedded JavaScript from the QML file and runs it against a mock score: algorithm and adapter logic (unisons, ties, tuplets, cross-staff, selection window, keep/replace rules).
+
+`musescore-runtime.js` loads the plugin in a real MuseScore 4 (headless, via `--extension`), applies the fingering to a small fixture score and checks the exported MusicXML. The GitHub Actions workflow runs it on Linux, Windows and macOS. It does **not** exercise the dialog (layout and button clicks), so manual verification is still required before a release; see [CONTRIBUTING.md](CONTRIBUTING.md) and [`tests/README.md`](tests/README.md).
 
 ## License
 

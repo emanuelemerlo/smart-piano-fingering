@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+# Cancel a superseded run of the same branch/PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   # Windows and Linux use this pinned MuseScore Studio release, so results are reproducible.
   # macOS installs the current Homebrew cask (the latest stable release, which can lag behind
@@ -32,12 +37,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Show runner information
         shell: bash
@@ -138,7 +143,7 @@ jobs:
 
       - name: Upload MuseScore diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: musescore-diagnostics-${{ matrix.os }}
           path: ${{ runner.temp }}/musescore-logs/

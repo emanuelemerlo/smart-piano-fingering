@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Cross-platform CI (`.github/workflows/multiplatform.yml`): algorithm tests, static QML checks and a runtime test that runs the real plugin inside MuseScore 4 on Linux, Windows and macOS.
+- `tests/musescore-runtime.js`, `tests/qml-compat-check.js` and a MusicXML fixture.
+
+### Changed
+- CI actions updated to Node 24-based versions; Node 22 for the test scripts.
+
 ## [1.1.0] - 2026-10-13
 
 ### Fixed

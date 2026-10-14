@@ -8,8 +8,8 @@ the MIT License, and has since been substantially modified and extended (JavaScr
 chord and multi-voice handling, held-note constraints, incremental generation, MuseScore adapter).
 
 The MIT License requires that its copyright and permission notice be included in copies of
-substantial portions of the software. Reproduce the upstream notice below, copied verbatim
-from the `LICENSE` file of the PianoPlayer version you derived from:
+substantial portions of the software. The upstream notice, from the `LICENSE` file of
+PianoPlayer, is reproduced below:
 
 ```
 MIT License

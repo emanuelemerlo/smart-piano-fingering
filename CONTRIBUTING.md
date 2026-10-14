@@ -12,12 +12,12 @@ Thank you for helping improve Smart Piano Fingering.
 ## Development workflow
 
 1. Edit `smart-piano-fingering.qml`.
-2. Run the automated tests: `node tests/run-tests.js`.
+2. Run the automated tests: `node tests/run-tests.js` and `node tests/qml-compat-check.js`. `node tests/musescore-runtime.js --musescore <path>` also runs the plugin in a real MuseScore 4 (see `tests/README.md`); CI does this on Linux, Windows and macOS.
 3. Copy the files to your MuseScore plugins folder and test on a **disposable score**.
 
 ## Manual verification before a release
 
-Automated tests do not run MuseScore's QML runtime. Before tagging a release verify, and record the MuseScore version and OS used:
+The runtime test runs the plugin logic inside MuseScore but not the dialog (layout, buttons, progress bar, Stop). Before tagging a release verify, and record the MuseScore version and OS used:
 
 - The plugin appears in the Plugins menu and opens without QML errors.
 - Right hand only, left hand only, both hands; single-staff and multi-staff scores.

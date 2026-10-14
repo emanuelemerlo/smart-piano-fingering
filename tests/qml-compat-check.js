@@ -98,8 +98,9 @@ if (qmlVersion && fs.existsSync(citationPath)) {
 }
 const changelogPath = path.join(root, "CHANGELOG.md");
 if (qmlVersion && fs.existsSync(changelogPath)) {
-    const first = (fs.readFileSync(changelogPath, "utf8").match(/^##\s*\[([^\]]+)\]/m) || [])[1];
-    check(first === qmlVersion, `latest CHANGELOG entry (${first}) matches the QML version (${qmlVersion})`);
+    // The first released entry; an [Unreleased] section above it is allowed.
+    const first = (fs.readFileSync(changelogPath, "utf8").match(/^##\s*\[(?!Unreleased)([^\]]+)\]/mi) || [])[1];
+    check(first === qmlVersion, `latest released CHANGELOG entry (${first}) matches the QML version (${qmlVersion})`);
 }
 
 console.log(failed ? `\n${failed} check(s) failed` : "\nAll QML compatibility checks passed.");
