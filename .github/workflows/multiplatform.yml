@@ -10,8 +10,9 @@ permissions:
 
 env:
   # Windows and Linux use this pinned MuseScore Studio release, so results are reproducible.
-  # macOS installs the current Homebrew cask (always the latest stable release); the version
-  # actually used is printed in the "Show MuseScore version" step.
+  # macOS installs the current Homebrew cask (the latest stable release, which can lag behind
+  # the pinned tag: the first CI run used 4.7.4); the version actually used is printed in
+  # the "Show MuseScore version" step.
   MUSESCORE_TAG: v4.7.5
   MUSESCORE_BUILD: 4.7.5.260831071
 
