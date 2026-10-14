@@ -1,0 +1,144 @@
+name: Smart Piano Fingering - Cross-platform tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Windows and Linux use this pinned MuseScore Studio release, so results are reproducible.
+  # macOS installs the current Homebrew cask (always the latest stable release); the version
+  # actually used is printed in the "Show MuseScore version" step.
+  MUSESCORE_TAG: v4.7.5
+  MUSESCORE_BUILD: 4.7.5.260831071
+
+jobs:
+  tests:
+    name: ${{ matrix.os }} - algorithm + MuseScore runtime
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Show runner information
+        shell: bash
+        run: |
+          echo "OS: $RUNNER_OS  Architecture: $RUNNER_ARCH"
+          node --version
+
+      # ---- fast checks, no MuseScore needed ------------------------------------------
+      - name: Run algorithm and adapter tests
+        run: node tests/run-tests.js
+
+      - name: Run static QML checks
+        run: node tests/qml-compat-check.js
+
+      # ---- install MuseScore ----------------------------------------------------------
+      - name: Install MuseScore Studio - macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew install --cask musescore
+          EXE="/Applications/MuseScore 4.app/Contents/MacOS/mscore"
+          test -x "$EXE"
+          echo "MUSESCORE_EXE=$EXE" >> "$GITHUB_ENV"
+
+      - name: Install MuseScore Studio - Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $url = "https://github.com/musescore/MuseScore/releases/download/$env:MUSESCORE_TAG/MuseScore-Studio-$env:MUSESCORE_BUILD-x86_64.msi"
+          $msi = Join-Path $env:RUNNER_TEMP "MuseScore.msi"
+          Invoke-WebRequest -Uri $url -OutFile $msi
+          $p = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "msiexec failed with exit code $($p.ExitCode)" }
+
+          $candidates = @(
+            "$env:ProgramFiles\MuseScore 4\bin\MuseScore4.exe",
+            "$env:LOCALAPPDATA\Programs\MuseScore 4\bin\MuseScore4.exe"
+          )
+          $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $exe) { throw "MuseScore executable not found after installation." }
+          "MUSESCORE_EXE=$exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install MuseScore Studio - Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libopengl0 libegl1 libxcb-cursor0 libxkbcommon-x11-0 libasound2t64
+          APPIMAGE="MuseScore-Studio-${MUSESCORE_BUILD}-x86_64.AppImage"
+          curl -fL --retry 3 -o "$RUNNER_TEMP/$APPIMAGE" \
+            "https://github.com/musescore/MuseScore/releases/download/${MUSESCORE_TAG}/${APPIMAGE}"
+          chmod +x "$RUNNER_TEMP/$APPIMAGE"
+          # Extract instead of running the AppImage directly: runners have no FUSE.
+          (cd "$RUNNER_TEMP" && "./$APPIMAGE" --appimage-extract > /dev/null)
+          echo "MUSESCORE_EXE=$RUNNER_TEMP/squashfs-root/AppRun" >> "$GITHUB_ENV"
+
+      - name: Show MuseScore version
+        shell: bash
+        run: |
+          echo "Executable: $MUSESCORE_EXE"
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a "$MUSESCORE_EXE" --version || true
+          else
+            "$MUSESCORE_EXE" --version || true
+          fi
+
+      # ---- run the real plugin inside MuseScore ---------------------------------------
+      # MuseScore 4 has no "--plugin" option. tests/musescore-runtime.js uses
+      # "mscore -o out.musicxml --extension <uri> score" instead; see the header of that file.
+      - name: Run MuseScore runtime test
+        shell: bash
+        env:
+          SPF_RUNTIME_LOG: ${{ runner.temp }}/musescore-runtime-output.log
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a node tests/musescore-runtime.js --musescore "$MUSESCORE_EXE" --timeout 180
+          else
+            node tests/musescore-runtime.js --musescore "$MUSESCORE_EXE" --timeout 180
+          fi
+
+      - name: Collect MuseScore logs
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/musescore-logs"
+          for d in \
+            "$HOME/Library/Application Support/MuseScore/MuseScore4/logs" \
+            "$HOME/.local/share/MuseScore/MuseScore4/logs" \
+            "$LOCALAPPDATA/MuseScore/MuseScore4/logs" \
+            "$HOME/Documents/MuseScore4/logs"
+          do
+            if [ -d "$d" ]; then cp -R "$d"/. "$RUNNER_TEMP/musescore-logs/" || true; fi
+          done
+          if [ -f "$RUNNER_TEMP/musescore-runtime-output.log" ]; then
+            cp "$RUNNER_TEMP/musescore-runtime-output.log" "$RUNNER_TEMP/musescore-logs/"
+          fi
+
+      - name: Upload MuseScore diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: musescore-diagnostics-${{ matrix.os }}
+          path: ${{ runner.temp }}/musescore-logs/
+          if-no-files-found: ignore
