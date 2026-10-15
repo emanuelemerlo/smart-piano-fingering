@@ -20,7 +20,7 @@ Thank you for helping improve Smart Piano Fingering.
 
 ## Manual verification before a release
 
-Automated tests do not run MuseScore's QML runtime. Before tagging a release verify, and record the MuseScore version and OS used:
+The CI runs the plugin inside MuseScore 4 on Windows, macOS and Linux (`tests/musescore-runtime.js`), but it does not cover the dialog itself (layout, buttons, progress bar, Stop) or Undo. Before tagging a release verify by hand, and record the MuseScore version and OS used:
 
 - The plugin appears in the Plugins menu and opens without QML errors.
 - Right hand only, left hand only, both hands; single-staff and multi-staff scores.

@@ -6,9 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-15
+
 ### Added
 - Option **Repeated notes: write the finger only when it changes** (on by default): a key struck
   again with the same finger is numbered only on its first stroke.
+- MuseScore runtime scenario `repeated-pedal` (pedal under another voice, compact numbering on
+  and off) and Node regression tests for the pedal and for compact writing.
 
 ### Fixed
 - Repeated-note pedals (a key repeated in one voice while another voice holds or moves, e.g. the
@@ -17,6 +21,7 @@ All notable changes to this project are documented here. The format follows
   between single notes and chords, so the finger changed irregularly from bar to bar
   (5-4-3-4-4-5, 5-5-4-3-4-5, 5-5-5-5-5-5, 5-4-2-4-4-4). Fast repetitions in a single line still
   change fingers.
+- Case count in the 2.0.0 entry below (305, not 302).
 
 ### Changed
 - Documentation aligned with 2.0.1: version in the README status, the README file list and testing
@@ -24,9 +29,9 @@ All notable changes to this project are documented here. The format follows
   longer say that testing was done only outside MuseScore.
 - `tests/compare-legacy.js` labels the current algorithm with the version declared in the plugin
   instead of a fixed "2.0.0"; `tests/COMPARISON.md` regenerated (306 cases).
-
-### Fixed
-- Case count in the 2.0.0 entry below (305, not 302).
+- Dialog height increased to fit the new option.
+- `CONTRIBUTING.md` no longer says that the automated tests do not run MuseScore.
+- User guide (`docs/README.txt`) updated to 2.1.0; new release notes `docs/RELEASE-NOTES-2.1.0.md`.
 
 ## [2.0.1] - 2026-10-15
 
