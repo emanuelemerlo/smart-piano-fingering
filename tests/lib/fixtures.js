@@ -122,7 +122,20 @@ function stress() {
     return score(ms);
 }
 
+// Repeated-note pedal (after Tchaikovsky, Morning Prayer op. 39 no. 1, bars 16-21): a G2 pedal
+// in eighth notes (voice 6) under a held / moving voice (voice 5), with a simple right hand.
+function repeatedPedal() {
+    const pedal = () => mk(Array(8).fill("G2"), E);
+    return score([
+        { s1: [mk(["G4", "B4", "A4", "G4"], Q)], s2: [[n("D3", H), n("Eb3", H)], pedal()] },
+        { s1: [mk(["C5", "B4", "A4", "G4"], Q)], s2: [[n("D3", Q), n("C3", Q), n("B2", H)], pedal()] },
+        { s1: [mk(["G4", "B4", "A4", "G4"], Q)], s2: [[n("D3", H), n("Eb3", H)], pedal()] },
+        { s1: [mk(["F#4", "A4", "G4", "D4"], Q)], s2: [[n("Bb2", H), n("A2", H)], pedal()] },
+    ]);
+}
+
 module.exports = {
+    repeatedPedal: repeatedPedal,
     scale4: scale4, scaleWithAnchor: scaleWithAnchor, existingFingerings: existingFingerings, richNotation: richNotation,
     eightMeasures: eightMeasures, crossStaff: crossStaff, restsOnly: restsOnly,
     withPercussion: withPercussion, stress: stress,

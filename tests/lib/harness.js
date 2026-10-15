@@ -8,7 +8,7 @@
 // The production plugin is a dialog that waits for a click on "Apply". For the tests we
 // generate a COPY of smart-piano-fingering.qml in which
 //   1. pluginType: "dialog" is removed (so MuseScore runs onRun and returns), and
-//   2. onRun ends with a test hook that sets the dialog controls (hands, size, keep, selection),
+//   2. onRun ends with a test hook that sets the dialog controls (hands, size, keep, compact repeated notes, selection),
 //      calls the plugin's own applyFingering()/runSlice() synchronously, and stores the dialog's
 //      status message in the score's "workNumber" so the tests can read it from the export.
 // Everything else (QML tree, embedded core, adapter, MuseScore API calls) is production code.
