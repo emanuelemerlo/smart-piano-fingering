@@ -2,13 +2,14 @@
 
 MuseScore plugin that calculates and inserts piano fingering numbers (`1`–`5`) for the right and left hands.
 
-> **Status:** version 2.0.1. The fingering algorithm and the score-reading logic are covered by automated tests in Node, and the plugin itself is run inside MuseScore 4 on Windows, macOS and Linux by the CI (see [Testing](#testing)). It has **not** been validated on every MuseScore release: try it on a copy of your score first.
+> **Status:** version 2.1.0. The fingering algorithm and the score-reading logic are covered by automated tests in Node, and the plugin itself is run inside MuseScore 4 on Windows, macOS and Linux by the CI (see [Testing](#testing)). It has **not** been validated on every MuseScore release: try it on a copy of your score first.
 
 ## Features
 
 - Right-hand and left-hand fingering, on any two staves you choose.
 - Hand-size presets: `XXS`, `XS`, `S`, `M`, `L`, `XL`, `XXL`.
 - Keeps your existing fingerings (and uses them as anchors for the calculation) or replaces them.
+- Repeated notes: the finger number can be written only where the finger changes (on by default).
 - **Selection only** mode: processes just the selected region and staves, plus a few bars of musical context.
 - Reads all four voices of a staff, merges tied notes, handles tuplets.
 - **Unisons between voices** (same pitch, same onset, e.g. voice 1 and voice 2 on the same note) get a **single** fingering, written on the lowest voice.
@@ -65,7 +66,8 @@ and only then lets the biomechanical model choose among the musically acceptable
    them), the standard chromatic fingering, rules for arpeggios and chord shapes.
 3. **Context-dependent rules**: thumb and fifth finger on black keys are penalised in scales and
    lines but accepted in chords and black-key arpeggios; thumb passages are modelled explicitly;
-   fast repeated notes change finger; leaps reposition the hand.
+   fast repeated notes change finger, while a repeated-note pedal under another voice keeps one
+   finger; leaps reposition the hand.
 4. **Search**: the original DP / branch-and-bound search over a window of notes, now including the
    previous note so that every transition is evaluated, with chords planned as a unit.
    Hard constraints (held notes, chord order and span, your existing fingerings) are relaxed only
@@ -91,7 +93,8 @@ The rules, their musical rationale and every coefficient are documented in the c
 |---|---|
 | `smart-piano-fingering.qml` | Plugin UI, fingering algorithm and MuseScore adapter. |
 | `smart-piano-fingering.png` | Plugin thumbnail referenced by `thumbnailName`. |
-| `docs/RELEASE-NOTES-2.0.0.md`, `docs/README.txt` | User-facing release notes (Markdown and plain text). |
+| `docs/README.txt` | User guide (plain text, included in the release ZIP). |
+| `docs/RELEASE-NOTES-2.1.0.md`, `docs/RELEASE-NOTES-2.0.0.md` | User-facing release notes. |
 | `tests/run-tests.js` | Node tests: algorithm, musical reference suite, invariants, score adapter (mock score). |
 | `tests/musical-suite.js` | Reference cases (scales, chromatic, arpeggios, chords, repeated notes, black keys, leaps, held notes, combinations). |
 | `tests/compare-legacy.js` | Compares version 1.1.0 (`tests/legacy/`) with the current algorithm. |

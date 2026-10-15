@@ -1,4 +1,4 @@
-SMART PIANO FINGERING 2.0.0
+SMART PIANO FINGERING 2.1.0
 ===========================
 
 Release date: 15 October 2026
@@ -6,12 +6,34 @@ Release date: 15 October 2026
 Smart Piano Fingering is a MuseScore 4 plugin that writes piano fingering
 (1-5) into your score for the right and the left hand.
 
-Version 2.0.0 is built around one idea: a fingering should be the one a piano
-teacher would write, not just the shortest movement of the hand. The plugin
-now reads the music first. It recognises scales, arpeggios, chords and other
+Since version 2.0 the plugin is built around one idea: a fingering should be
+the one a piano teacher would write, not just the shortest movement of the
+hand. The plugin reads the music first. It recognises scales, arpeggios, chords and other
 familiar figures and fingers them as pianists are taught to. Only where the
 music leaves a real choice does it pick the most comfortable option for your
 hand.
+
+
+WHAT'S NEW IN 2.1.0
+-------------------
+
+  - Repeated-note pedals keep one finger. A key repeated in one voice while
+    another voice holds or moves (for example the G pedal in the left hand
+    of Tchaikovsky's Morning Prayer, op. 39 no. 1, bars 16-21) is now played
+    with the same finger throughout. Before, the finger could change
+    irregularly from bar to bar.
+  - New option "Repeated notes: write the finger only when it changes"
+    (on by default). When a key is struck again with the same finger, the
+    number is written only on the first note, and again where the finger
+    changes. Switch it off to number every note.
+
+Also included since 2.0.0 (version 2.0.1):
+
+  - An existing fingering that contradicts a recognised pattern now makes
+    the surrounding notes follow it.
+  - Broken-chord accompaniments that change harmony every bar keep the same
+    hand shape (5-3-1-3) in every bar.
+  - Needlessly cramped fingerings (such as 1-4 on a second) are avoided.
 
 
 INSTALLATION
@@ -23,6 +45,14 @@ INSTALLATION
 2. Enable "Smart Piano Fingering" in Home > Plugins.
 3. Open a score, choose the staves for the right and left hand and the hand
    size, then press Apply.
+
+Options in the dialog:
+
+  - Keep existing fingerings: on, the numbers already in the score are kept
+    and used by the calculation; off, plain numbers 1-5 are replaced (other
+    fingering text, such as 1-2, is never touched).
+  - Repeated notes: write the finger only when it changes (on by default).
+  - Selection only: works on the selected bars and staves.
 
 Work on a copy of your score the first time.
 
@@ -99,7 +129,10 @@ Repeated notes
   - Fast repetitions change finger, usually towards the thumb: 4 3 2 1,
     3 2 1 or 2 1.
   - Slow repetitions keep the same finger.
-  - The weak fifth finger is avoided for repeated notes.
+  - A repeated-note pedal under (or over) another voice keeps one finger,
+    also where the pedal note sounds together with the other voice. A bass
+    pedal is usually played with 5 throughout.
+  - In a fast repetition the weak fifth finger is avoided.
 
 Leaps
 

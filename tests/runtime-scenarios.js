@@ -4,6 +4,7 @@
 // ctx.run(fixture, cfg)  -> { problem, status, notes, xml, ms, file }
 //     cfg: { rh, lh (staff numbers, 0 = none), size (0..6 = XXS..XXL), keep (bool),
 //            select: { from, to (measures, 1-based), staffFrom, staffTo (0-based, end exclusive) },
+//            compact (bool, default false: "Repeated notes: write the finger only when it changes"),
 //            failAt (make the Nth fingering creation throw, to test the rollback) }
 // ctx.check(cond, message), ctx.golden(key, notes), ctx.info(message)
 "use strict";
@@ -254,6 +255,24 @@ scenario("stress", "1536 notes: completes, every note fingered, result is stable
     const bad = repeatedFingerOnDifferentPitch(r.notes);
     ctx.check(bad.length === 0, "no consecutive different pitches share a finger" + (bad.length ? " (" + bad.length + " cases, e.g. " + bad.slice(0, 2).join("; ") + ")" : ""));
     ctx.golden("stress", r.notes);
+});
+
+scenario("repeated-pedal", "repeated-note pedal under another voice: one finger; compact numbering on and off", ctx => {
+    const pedalOf = r => find(r.notes, x => x.staff === 2 && x.midi === 43);
+    const full = runOk(ctx, ctx.file("pedal", fx.repeatedPedal()), { compact: false }, "pedal, compact off");
+    const g = pedalOf(full);
+    ctx.check(g.length === 32 && g.every(hasFinger), "compact off: all 32 pedal notes are fingered (got " + g.filter(hasFinger).length + "/" + g.length + ")");
+    ctx.check(new Set(g.map(finger)).size === 1 && finger(g[0]) === "5",
+        "the pedal keeps one finger, 5 (got " + Array.from(new Set(g.map(finger))).join(",") + ")");
+    wellFormed(ctx, full.notes, "pedal, compact off");
+    const compact = runOk(ctx, ctx.file("pedal", fx.repeatedPedal()), { compact: true }, "pedal, compact on");
+    const c = pedalOf(compact);
+    const shown = c.filter(hasFinger);
+    ctx.check(c.length === 32 && shown.length === 1 && shown[0].measure === 1 && shown[0].onset === 0 && finger(shown[0]) === "5",
+        "compact on: only the first pedal note is numbered, with 5 (got " + shown.map(x => where(x) + "=" + finger(x)).join("; ") + ")");
+    ctx.check(doneCount(compact.status) === pitched(compact.notes).filter(hasFinger).length,
+        "status counts the numbers actually written (got \"" + compact.status + '")');
+    wellFormed(ctx, compact.notes, "pedal, compact on");
 });
 
 module.exports = { scenarios: scenarios };

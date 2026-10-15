@@ -23,7 +23,7 @@ import QtQuick.Layouts 1.3
 import MuseScore 3.0
 
 MuseScore {
-    version: "2.0.1"
+    version: "2.1.0"
     description: qsTr("Inserts piano fingering (1-5) for the right and left hand into the open score.")
     menuPath: "Plugins.SmartPianoFingering"   // MuseScore 3 only; ignored by MuseScore 4
     title: "Smart Piano Fingering"

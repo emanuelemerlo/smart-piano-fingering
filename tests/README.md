@@ -4,7 +4,7 @@
 |---|---|---|
 | `run-tests.js` | Unit tests of the embedded core and adapter against a mock score | no |
 | `qml-compat-check.js` | Static checks on the QML file and version consistency | no |
-| `musescore-runtime.js` | Runs the real plugin inside MuseScore 4 on 19 scenarios (see below) | yes |
+| `musescore-runtime.js` | Runs the real plugin inside MuseScore 4 on 20 scenarios (see below) | yes |
 | `runtime-scenarios.js` | The scenarios and their assertions | - |
 | `lib/` | Score builder/parser (`musicxml.js`), test scores (`fixtures.js`), MuseScore runner (`harness.js`) | - |
 | `golden/` | Saved fingering for a few scores, to detect any change of the algorithm | - |
@@ -14,7 +14,7 @@
 
 MuseScore 4 has no `--plugin` option. The tests use
 `mscore -o out.musicxml --extension <uri> score` instead, on a **test copy** of the QML in which
-the dialog type is removed and a hook sets the dialog controls (hands, size, keep, selection),
+the dialog type is removed and a hook sets the dialog controls (hands, size, keep, compact repeated notes, selection),
 calls the plugin's own `applyFingering()` and stores the dialog's status message in the score.
 Everything else is production code running in MuseScore's own QML engine. The exported MusicXML
 is then parsed and checked.
@@ -23,7 +23,8 @@ Covered: both/one hand, same staff twice, Keep existing on/off (including custom
 `1-2`), chords, rests, ties, grace notes, tuplets, unison between voices, selection (middle, first
 and last measure, one staff only, same result as the full run), cross-staff notes, percussion
 staves, empty scores, running twice, rollback after a failure while writing (fault injection),
-all seven hand sizes, determinism, and a 1536-note score.
+all seven hand sizes, determinism, a 1536-note score, and a repeated-note pedal under another
+voice (one finger; "write the finger only when it changes" on and off).
 
 Not covered: how the dialog looks and clicks on its buttons (progress bar, Stop), and undo
 (plugins have no undo API; the rollback test covers the single-command guarantee instead).
