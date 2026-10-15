@@ -2,7 +2,8 @@
 // small score, with specific dialog settings, and asserts on the score MuseScore exports.
 //
 // ctx.run(fixture, cfg)  -> { problem, status, notes, xml, ms, file }
-//     cfg: { rh, lh (staff numbers, 0 = none), size (0..6 = XXS..XXL), keep (bool),
+//     cfg: { rh, lh (staff numbers, 0 = none), size (0..5 = child 5-8, child 9-12, small, woman,
+//            man, large; 6 = custom), span (custom span in cm), child (custom child's hand), keep (bool),
 //            select: { from, to (measures, 1-based), staffFrom, staffTo (0-based, end exclusive) },
 //            compact (bool, default false: "Repeated notes: write the finger only when it changes"),
 //            failAt (make the Nth fingering creation throw, to test the rollback) }
@@ -179,20 +180,27 @@ scenario("selection-context", "a selection inside a score gets the same fingerin
     ctx.check(diffs.length === 0, "same fingering as the full run (differences: " + diffs.slice(0, 3).map(x => key(x) + " " + finger(x) + " vs " + fullMap[key(x)]).join("; ") + ")");
 });
 
-scenario("hand-sizes", "all seven hand sizes run, produce valid output and are deterministic", ctx => {
+scenario("hand-sizes", "all six hand profiles and a custom hand run, produce valid output and are deterministic", ctx => {
     const f = ctx.file("scale4", fx.scale4());
-    const names = ["XXS", "XS", "S", "M", "L", "XL", "XXL"];
+    const names = ["child58", "child912", "small", "woman", "man", "large"];
     const results = {};
     names.forEach((name, i) => {
-        const r = runOk(ctx, f, { size: i }, "size " + name);
+        const r = runOk(ctx, f, { size: i }, "hand " + name);
         results[name] = r;
         ctx.check(doneCount(r.status) === 32 && pitched(r.notes).every(hasFinger), name + ": all 32 notes fingered (status \"" + r.status + '")');
         wellFormed(ctx, r.notes, name);
     });
-    const again = runOk(ctx, f, { size: 3 }, "size M again");
-    ctx.check(JSON.stringify(pitched(again.notes).map(finger)) === JSON.stringify(pitched(results.M.notes).map(finger)),
+    const again = runOk(ctx, f, { size: 3 }, "hand woman again");
+    ctx.check(JSON.stringify(pitched(again.notes).map(finger)) === JSON.stringify(pitched(results.woman.notes).map(finger)),
         "same input and settings give the same fingering (deterministic)");
-    ["XXS", "M", "XXL"].forEach(name => ctx.golden("scale4-" + name, results[name].notes));
+    // custom hand: same span and mobility as a profile -> same fingering; the dialog passes cm and child
+    const custom = runOk(ctx, f, { size: 6, span: 22.5, child: false }, "custom 22.5 cm");
+    ctx.check(JSON.stringify(pitched(custom.notes).map(finger)) === JSON.stringify(pitched(results.man.notes).map(finger)),
+        "custom hand 22.5 cm = profile man");
+    const customChild = runOk(ctx, f, { size: 6, span: 14.5, child: true }, "custom 14.5 cm child");
+    ctx.check(JSON.stringify(pitched(customChild.notes).map(finger)) === JSON.stringify(pitched(results.child58.notes).map(finger)),
+        "custom child's hand 14.5 cm = profile child 5-8");
+    ["child58", "woman", "large"].forEach(name => ctx.golden("scale4-" + name, results[name].notes));
 });
 
 scenario("cross-staff", "notes displayed on the other staff are fingered by that staff's hand", ctx => {

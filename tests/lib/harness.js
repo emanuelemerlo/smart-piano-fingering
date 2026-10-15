@@ -95,6 +95,8 @@ function createHarness(opts) {
             "        if (cfg.rh !== undefined) { rhStaff.value = cfg.rh; }\n" +
             "        if (cfg.lh !== undefined) { lhStaff.value = cfg.lh; }\n" +
             "        if (cfg.size !== undefined) { sizeBox.currentIndex = cfg.size; }\n" +
+            "        if (cfg.span !== undefined) { spanBox.value = Math.round(cfg.span * 10); }\n" +
+            "        if (cfg.child !== undefined) { childHand.checked = cfg.child; }\n" +
             "        if (cfg.keep !== undefined) { keepExisting.checked = cfg.keep; }\n" +
             // compact repeated-note numbering is off unless a scenario asks for it, so the
             // "every note is fingered" checks and the golden files keep their meaning

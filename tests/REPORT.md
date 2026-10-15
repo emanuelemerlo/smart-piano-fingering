@@ -10,7 +10,7 @@ Classes: CANONICAL = the standard fingering; ACCEPTABLE VARIANT = a fingering te
 | B. Minor scales | 146 | 146 | 146 | 0 | 0 | 0 | 0 |
 | C. Chromatic & pentatonic | 12 | 12 | 9 | 0 | 3 | 0 | 0 |
 | D. Arpeggios | 36 | 36 | 36 | 0 | 0 | 0 | 0 |
-| E. Chords | 18 | 18 | 16 | 2 | 0 | 0 | 0 |
+| E. Chords | 18 | 18 | 17 | 1 | 0 | 0 | 0 |
 | F. Repeated notes | 6 | 6 | 0 | 0 | 6 | 0 | 0 |
 | G. Black keys | 8 | 8 | 3 | 0 | 5 | 0 | 0 |
 | H. Leaps | 4 | 4 | 0 | 0 | 4 | 0 | 0 |
@@ -18,7 +18,7 @@ Classes: CANONICAL = the standard fingering; ACCEPTABLE VARIANT = a fingering te
 | J. Combinations | 8 | 8 | 8 | 0 | 0 | 0 | 0 |
 | M. Hand position | 5 | 5 | 3 | 0 | 2 | 0 | 0 |
 | K. Recognition limits | 5 | 5 | 3 | 0 | 2 | 0 | 0 |
-| L. Anchors and hand size | 7 | 7 | 4 | 0 | 1 | 0 | 2 |
+| L. Anchors and hand size | 9 | 9 | 6 | 0 | 1 | 0 | 2 |
 
 | # | group | case | expected | actual | class | result | reason |
 |---|---|---|---|---|---|---|---|
@@ -284,8 +284,8 @@ Classes: CANONICAL = the standard fingering; ACCEPTABLE VARIANT = a fingering te
 | 260 | E. Chords | octave RH | 15 | 15 | CANONICAL | pass |  |
 | 261 | E. Chords | octave LH | 51 | 51 | CANONICAL | pass |  |
 | 262 | E. Chords | five-note cluster RH | 12345 | 12345 | CANONICAL | pass |  |
-| 263 | E. Chords | C major root position RH (XS) | 135 | 125 | ACCEPTABLE VARIANT | pass |  |
-| 264 | E. Chords | C major + octave RH (XXL) | 1235 | 1235 | CANONICAL | pass |  |
+| 263 | E. Chords | C major root position RH (child58) | 135 | 135 | CANONICAL | pass |  |
+| 264 | E. Chords | C major + octave RH (large) | 1235 | 1235 | CANONICAL | pass |  |
 | 265 | F. Repeated notes | slow repeated C (half notes) keeps the finger | – | 1111 | VALID (no reference) | pass |  |
 | 266 | F. Repeated notes | fast repeated C (16ths) alternates fingers | – | 43212121 | VALID (no reference) | pass |  |
 | 267 | F. Repeated notes | very fast long repetition (16 x 32nds) alternates | – | 4321212121212121 | VALID (no reference) | pass |  |
@@ -316,8 +316,8 @@ Classes: CANONICAL = the standard fingering; ACCEPTABLE VARIANT = a fingering te
 | 292 | J. Combinations | scale -> arpeggio (RH) | 12312341235 | 12312341235 | CANONICAL | pass |  |
 | 293 | J. Combinations | broken triads changing every bar (LH) | 5313531353135313 | 5313531353135313 | CANONICAL | pass |  |
 | 294 | J. Combinations | Alberti bass (LH) | 5131513151315131 | 5131513151315131 | CANONICAL | pass |  |
-| 295 | M. Hand position | LH broken chord over a tenth, F2-C3-A3-C3-A3-C3 x2, then G (M) | 531313531313531313531313 | 531313531313531313531313 | CANONICAL | pass |  |
-| 296 | M. Hand position | LH broken chord over a tenth, F2-C3-A3-C3-A3-C3 x2, then G (L) | 531313531313531313531313 | 531313531313531313531313 | CANONICAL | pass |  |
+| 295 | M. Hand position | LH broken chord over a tenth, F2-C3-A3-C3-A3-C3 x2, then G (woman) | 531313531313531313531313 | 531313531313531313531313 | CANONICAL | pass |  |
+| 296 | M. Hand position | LH broken chord over a tenth, F2-C3-A3-C3-A3-C3 x2, then G (man) | 531313531313531313531313 | 531313531313531313531313 | CANONICAL | pass |  |
 | 297 | M. Hand position | LH broken chord over a twelfth with the fifth on top, G2-D3-G3 (L) | 521212521212 | 521212521212 | CANONICAL | pass |  |
 | 298 | M. Hand position | RH figure mirrored: B5-E5-G4-E5-G4-E5 (thumb not on the top note) | – | 531313531313 | VALID (no reference) | pass |  |
 | 299 | M. Hand position | repeated two-note chord keeps its fingering | – | 53213213 | VALID (no reference) | pass |  |
@@ -328,8 +328,10 @@ Classes: CANONICAL = the standard fingering; ACCEPTABLE VARIANT = a fingering te
 | 304 | K. Recognition limits | scale from the 5th degree with key signature (G major) | 23412312 | 23412312 | CANONICAL | pass |  |
 | 305 | L. Anchors and hand size | user anchor 4 on F in C major is kept | – | 12341234 | VALID (no reference) | pass |  |
 | 306 | L. Anchors and hand size | anchor clashing with a held finger is reported | – | 11 | PHYSICALLY IMPOSSIBLE | pass |  |
-| 307 | L. Anchors and hand size | C major scale RH 2 oct with hand XXS | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
-| 308 | L. Anchors and hand size | C major scale RH 2 oct with hand S | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
-| 309 | L. Anchors and hand size | C major scale RH 2 oct with hand XXL | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
-| 310 | L. Anchors and hand size | C major arpeggio RH with hand XXS stays playable | 1231235 | 1231235 | CANONICAL | pass |  |
-| 311 | L. Anchors and hand size | wide chord C3-G3-E4 RH (M): impossible span is reported | – | 125 | PHYSICALLY IMPOSSIBLE | pass |  |
+| 307 | L. Anchors and hand size | C major scale RH 2 oct with hand child58 | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
+| 308 | L. Anchors and hand size | C major scale RH 2 oct with hand child912 | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
+| 309 | L. Anchors and hand size | C major scale RH 2 oct with hand man | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
+| 310 | L. Anchors and hand size | C major scale RH 2 oct with hand large | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
+| 311 | L. Anchors and hand size | C major scale RH 2 oct with hand custom 15 cm child | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
+| 312 | L. Anchors and hand size | C major arpeggio RH with a 5-8 year old child's hand stays playable | 1231235 | 1231235 | CANONICAL | pass |  |
+| 313 | L. Anchors and hand size | wide chord C3-G3-E4 RH (woman): impossible span is reported | – | 125 | PHYSICALLY IMPOSSIBLE | pass |  |

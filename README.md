@@ -7,7 +7,7 @@ MuseScore plugin that calculates and inserts piano fingering numbers (`1`–`5`)
 ## Features
 
 - Right-hand and left-hand fingering, on any two staves you choose.
-- Hand-size presets: `XXS`, `XS`, `S`, `M`, `L`, `XL`, `XXL`.
+- Hand profiles based on real hand spans (child 5-8, child 9-12, small hand, woman, man, large hand) or your own measurement, with a separate mobility model for children's hands.
 - Keeps your existing fingerings (and uses them as anchors for the calculation) or replaces them.
 - Repeated notes: the finger number can be written only where the finger changes (on by default).
 - **Selection only** mode: processes just the selected region and staves, plus a few bars of musical context.
@@ -40,7 +40,18 @@ Keep the QML file and the PNG together. If the plugin is not listed, check the p
 
 1. Open the score and launch the plugin.
 2. Set the staff number for the **right hand** and, optionally, the **left hand** (`0` = none).
-3. Choose a **hand size**. Presets are heuristic, not a measured hand model.
+3. Choose your **hand**. Each profile is defined by the span between thumb and little finger, spread as far as possible on a table:
+
+   | profile | span | reaches (with minimal comfort / comfortably) |
+   |---|---|---|
+   | Child, 5-8 years | 14.5 cm | a sixth / a fifth |
+   | Child, 9-12 years | 17 cm | a seventh / a sixth |
+   | Small hand | 19 cm | a seventh (an octave at the edge) / a sixth |
+   | Woman (default) | 20 cm | an octave / a seventh |
+   | Man | 22.5 cm | a ninth / an octave |
+   | Large hand | 24 cm | a tenth / a ninth |
+
+   The spans are those of pianist hand-span surveys (mean adult male 22.6 cm, female 20.1 cm). **Custom...** lets you enter your own span; tick **Child's hand** for a child. A child's hand is not just smaller: the long fingers open less, stretches between 3-4-5 strain sooner, the thumb passage is shorter and harder, and the 5th finger is weaker. The default *Woman* profile gives exactly the results of the former `M` preset. Scale and arpeggio fingerings are the same for every hand.
 4. **Keep existing fingerings**:
    - *on* – existing fingerings are never touched; plain numbers `1`–`5` are used as anchors by the calculation.
    - *off* – plain numbers `1`–`5` are replaced. Notes carrying any other fingering text (for example a substitution such as `1-2`) are left untouched and reported in the final message.

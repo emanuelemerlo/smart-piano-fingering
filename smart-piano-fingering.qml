@@ -31,8 +31,8 @@ MuseScore {
     thumbnailName: "smart-piano-fingering.png"
     pluginType: "dialog"
     requiresScore: true
-    width: 400
-    height: 430
+    width: 420
+    height: 500
 
     Component.onCompleted: {
         if (mscoreMajorVersion > 4 || (mscoreMajorVersion === 4 && mscoreMinorVersion >= 4)) {
@@ -41,7 +41,16 @@ MuseScore {
         }
     }
 
-    property var handSizes: ["XXS", "XS", "S", "M", "L", "XL", "XXL"]
+    // Hand profiles (ids of HAND_PROFILES in the core) and the custom hand, in dialog order.
+    property var handProfiles: [
+        { id: "child58",  text: qsTr("Child, 5-8 years (14.5 cm)"), span: 14.5, child: true },
+        { id: "child912", text: qsTr("Child, 9-12 years (17 cm)"),  span: 17.0, child: true },
+        { id: "small",    text: qsTr("Small hand (19 cm)"),         span: 19.0, child: false },
+        { id: "woman",    text: qsTr("Woman (20 cm)"),              span: 20.0, child: false },
+        { id: "man",      text: qsTr("Man (22.5 cm)"),              span: 22.5, child: false },
+        { id: "large",    text: qsTr("Large hand (24 cm)"),         span: 24.0, child: false },
+        { id: "custom",   text: qsTr("Custom..."),                  span: 0,    child: false }
+    ]
     property bool hasSelection: false
     property bool busy: false
     property bool cancelRequested: false
@@ -112,6 +121,32 @@ MuseScore {
         console.log("SmartPianoFingering error: " + err + (err && err.stack ? "\n" + err.stack : ""));
     }
 
+    // The hand chosen in the dialog: a profile id, or { span, child } for a custom hand.
+    function selectedHand() {
+        var pr = handProfiles[sizeBox.currentIndex];
+        if (!pr || pr.id !== "custom") { return pr ? pr.id : "woman"; }
+        return { span: spanBox.value / 10.0, child: childHand.checked };
+    }
+
+    // Intervals reached by a thumb-to-little-finger span (pianist hand-span surveys: the span minus
+    // about 2.5 cm is the widest white-key interval played with minimal comfort - the limit the
+    // plugin plans chords with; minus about 5 cm, the widest one played without tension).
+    function handReach(span) {
+        var names = [qsTr("a fourth"), qsTr("a fifth"), qsTr("a sixth"), qsTr("a seventh"), qsTr("an octave"),
+                     qsTr("a ninth"), qsTr("a tenth"), qsTr("an eleventh")];
+        var cm = [7.1, 9.4, 11.8, 14.1, 16.5, 18.9, 21.2, 23.6];
+        function widest(x) {
+            var r = -1;
+            for (var i = 0; i < cm.length; i++) { if (x >= cm[i] - 0.05) { r = i; } }
+            return r;
+        }
+        // same formula as the core's chord limits (SPAN_OFFSET; 17.425 cm = 1-5 limit at 20 cm)
+        var mx = widest((span - 2.5) * 17.425 / 17.5), cf = widest(span - 5.0);
+        if (mx < 0) { return qsTr("Reaches less than a fourth."); }
+        if (cf < 0) { return qsTr("Reaches %1 at most.").arg(names[mx]); }
+        return qsTr("Reaches %1 at most, %2 comfortably.").arg(names[mx]).arg(names[cf]);
+    }
+
     function applyFingering() {
         if (busy) { return; }
         if (!curScore) { status.text = qsTr("No open score found."); return; }
@@ -121,7 +156,7 @@ MuseScore {
                 score: curScore, Element: Element, Cursor: Cursor,
                 division: division, newElement: newElement
             });
-            var size = handSizes[sizeBox.currentIndex];
+            var size = selectedHand();
             var keep = keepExisting.checked;
             var div = division > 0 ? division : 480;
 
@@ -288,8 +323,52 @@ MuseScore {
                 Label { text: qsTr("Left hand: staff (0 = none)"); color: activePalette.windowText }
                 SpinBox { id: lhStaff; from: 0; to: 2; value: 2; editable: true }
 
-                Label { text: qsTr("Hand size"); color: activePalette.windowText }
-                ComboBox { id: sizeBox; model: handSizes; currentIndex: 3 }
+                Label { text: qsTr("Hand"); color: activePalette.windowText }
+                ComboBox {
+                    id: sizeBox
+                    model: handProfiles
+                    textRole: "text"
+                    currentIndex: 3
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: qsTr("Span thumb - little finger (cm)")
+                    color: activePalette.windowText
+                    visible: sizeBox.currentIndex === handProfiles.length - 1
+                }
+                SpinBox {
+                    id: spanBox
+                    visible: sizeBox.currentIndex === handProfiles.length - 1
+                    from: 120; to: 280; stepSize: 5; value: 200; editable: true
+                    textFromValue: function (v, locale) { return (v / 10.0).toFixed(1); }
+                    valueFromText: function (t, locale) { return Math.round(parseFloat(String(t).replace(",", ".")) * 10); }
+                }
+            }
+
+            CheckBox {
+                id: childHand
+                text: qsTr("Child's hand (less mobility)")
+                visible: sizeBox.currentIndex === handProfiles.length - 1
+                contentItem: Text {
+                    text: childHand.text
+                    color: activePalette.windowText
+                    leftPadding: childHand.indicator.width + childHand.spacing
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+
+            Label {
+                id: reachInfo
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: activePalette.windowText
+                font.italic: true
+                text: {
+                    var pr = handProfiles[sizeBox.currentIndex];
+                    var span = pr && pr.id !== "custom" ? pr.span : spanBox.value / 10.0;
+                    return handReach(span);
+                }
             }
 
 			CheckBox {
@@ -422,16 +501,61 @@ MuseScore {
         //          + melodic penalty (5th finger inside a line)
         // =========================================================================================
 
-        var SIZE_FACTORS = { XXS: 0.33, XS: 0.46, S: 0.64, M: 0.82, L: 1.0, XL: 1.1, XXL: 1.2 };
-        // Hand factor of the "M" preset. Semitone limits in this file are stated for an M hand and
-        // multiplied by sizeScale = hf / REF_HF for other sizes.
+        // ---- HAND MODEL ---------------------------------------------------------------------------
+        // A hand is described by two measured spans and by its mobility:
+        //   span   : thumb-to-little-finger span (cm), hand spread flat on a table. It governs the
+        //            pairs that include the thumb (1-2 ... 1-5) and the general reach of the hand.
+        //   span25 : index-to-little-finger span (cm). It governs the pairs without the thumb. It
+        //            varies about half as much as `span` between people (pianist hand-span surveys:
+        //            men/women differ by ~2.5 cm on 1-5 and ~1.3 cm on 2-5), so it is estimated
+        //            from `span` when not given.
+        //   child  : the MOBILITY of a child's hand, which is not a scaled adult hand: less
+        //            abduction between the long fingers, an earlier onset of strain, a less
+        //            independent 4th finger, a shorter and harder thumb passage, a weaker 5th
+        //            finger, slower repositioning (see MOBILITY).
+        // Reference (all semitone and cm limits of this file are stated for it): the "woman"
+        // profile, span 20 cm (mean adult female pianist), identical to the former "M" preset.
+        // Surveyed means: men 22.6 cm, women 20.1 cm; children 6-17: 14.7-23.4 cm. A span of
+        // 17 cm reaches an octave at the edge, 19.3 a ninth at the edge, 21.6 a tenth at the edge.
+        var REF_SPAN = 20.0;
+        // Reach grows with the span minus a constant (about one interval per 2.3 cm of span in the
+        // surveys), not in proportion to it: the widest interval played with minimal comfort is
+        // about span - SPAN_OFFSET cm, which is what the chord limits (THRESHOLDS) represent.
+        var SPAN_OFFSET = 2.5;
+        var REF_SPAN25 = 15.5;
+        var SPAN25_SLOPE = 0.52;
+        var HAND_PROFILES = {
+            child58:  { span: 14.5, child: true },
+            child912: { span: 17.0, child: true },
+            small:    { span: 19.0, child: false },
+            woman:    { span: 20.0, child: false },
+            man:      { span: 22.5, child: false },
+            large:    { span: 24.0, child: false }
+        };
+        var HAND_PROFILE_ORDER = ["child58", "child912", "small", "woman", "man", "large"];
+        // Presets of version 2.1 and earlier (scripts, saved test settings).
+        var LEGACY_SIZES = { XXS: "child58", XS: "child58", S: "child912", M: "woman", L: "man", XL: "large", XXL: "large" };
+        // Mobility. EMPIRICAL estimates (not measured), to be validated by teachers.
+        var MOBILITY = {
+            adult: { abduction: 1.0, comfort: 1.0, weakStretch: 2.0, crossCost: 1.0, crossReach: 1.0,
+                     speed: 1.0, fifth: 0.8 },
+            child: { abduction: 0.85,   // spans between fingers 2-5, relative to an adult of the same span
+                     comfort: 0.875,    // comfortable zone 70% of the maximum instead of 80%
+                     weakStretch: 3.0,  // 3-4 / 4-5 stretches
+                     crossCost: 1.3,    // thumb passages
+                     crossReach: 0.85,  // distance crossed comfortably by a thumb passage
+                     speed: 1.5,        // extra cost of fast crossings and leaps
+                     fifth: 0.65 }      // strength of the 5th finger
+        };
+        // Former hand factor of the reference hand (rest positions and chord limits are in cm for it).
         var REF_HF = 0.82;
         var OCTAVE_CM = 16.5;
         var WHITE_KEY_CM = OCTAVE_CM / 7.0;
         var PITCHCLASS_LAYOUT = [0.5, 1.0, 1.5, 2.0, 2.5, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5];
         var FINGERS = [1, 2, 3, 4, 5];
         var MAX_DEPTH = 9;           // notes looked at after the current one (as in version 1)
-        // Maximum span (cm, M hand after the 0.8/hf normalisation) between two fingers of a chord.
+        // Maximum span between two fingers of a chord, for the reference hand (cm x 0.8/REF_HF, the
+        // normalisation of version 1), scaled per finger pair by pairScale().
         var THRESHOLDS = {
             "3,4": 5, "4,5": 5, "2,3": 6, "2,4": 7, "3,5": 8,
             "2,5": 11, "1,2": 12, "1,3": 14, "1,4": 16, "1,5": 17
@@ -547,7 +671,7 @@ MuseScore {
             heldReleaseBeats: 2.0  // notes held longer than this may be released if nothing else works
         };
 
-        function mergeParams(over) {
+        function mergeParams(over, over2) {
             var p = {}, k, j;
             for (k in DEFAULT_PARAMS) {
                 if (!DEFAULT_PARAMS.hasOwnProperty(k)) { continue; }
@@ -559,13 +683,16 @@ MuseScore {
                     p[k] = v;
                 }
             }
-            if (over) {
-                for (k in over) {
-                    if (!over.hasOwnProperty(k)) { continue; }
-                    if (p[k] && typeof p[k] === "object" && !(p[k] instanceof Array) && typeof over[k] === "object") {
-                        for (j in over[k]) { if (over[k].hasOwnProperty(j)) { p[k][j] = over[k][j]; } }
+            var layers = [over, over2];
+            for (var li = 0; li < layers.length; li++) {
+                var ov = layers[li];
+                if (!ov) { continue; }
+                for (k in ov) {
+                    if (!ov.hasOwnProperty(k)) { continue; }
+                    if (p[k] && typeof p[k] === "object" && !(p[k] instanceof Array) && typeof ov[k] === "object") {
+                        for (j in ov[k]) { if (ov[k].hasOwnProperty(j)) { p[k][j] = ov[k][j]; } }
                     } else {
-                        p[k] = over[k];
+                        p[k] = ov[k];
                     }
                 }
             }
@@ -584,22 +711,62 @@ MuseScore {
 
         function isBlackKey(midi) { return BLACK_PC[pcOf(midi)]; }
 
+        // size: a profile id (HAND_PROFILES), a legacy preset (XXS..XXL), or a custom hand
+        // { span: cm, span25: cm (optional), child: bool }. Unknown values give the reference hand.
+        function resolveHand(size) {
+            var d = null, id = "woman";
+            if (size && typeof size === "object") {
+                var sp = Number(size.span);
+                if (!(sp > 0)) { sp = REF_SPAN; }
+                d = { span: Math.max(10, Math.min(30, sp)), child: !!size.child };
+                if (Number(size.span25) > 0) { d.span25 = Math.max(8, Math.min(25, Number(size.span25))); }
+                id = "custom";
+            } else {
+                id = LEGACY_SIZES[size] || (HAND_PROFILES[size] ? size : "woman");
+                d = { span: HAND_PROFILES[id].span, child: HAND_PROFILES[id].child };
+            }
+            if (!d.span25) { d.span25 = REF_SPAN25 + SPAN25_SLOPE * (d.span - REF_SPAN); }
+            d.id = id;
+            return d;
+        }
+
         function makeHand(side, size, options) {
-            var hf = SIZE_FACTORS[size] !== undefined ? SIZE_FACTORS[size] : SIZE_FACTORS.M;
-            var frest = [null, -7.0, -2.8, 0.0, 2.8, 5.6];
-            for (var i = 1; i <= 5; i++) {
-                if (frest[i]) { frest[i] *= hf; }
+            var hd = resolveHand(size);
+            var mob = hd.child ? MOBILITY.child : MOBILITY.adult;
+            var s1 = (hd.span - SPAN_OFFSET) / (REF_SPAN - SPAN_OFFSET);   // pairs with the thumb, reach
+            var s2 = hd.span25 / REF_SPAN25 * mob.abduction;     // pairs of the long fingers
+            // Rest positions of the fingertips relative to the 3rd finger (cm, reference hand).
+            var frest = [null, -7.0 * REF_HF * s1, -2.8 * REF_HF * s2, 0.0, 2.8 * REF_HF * s2, 5.6 * REF_HF * s2];
+            // Mobility enters as parameter defaults; explicit options.params still win.
+            var mobParams = { weakStretch: mob.weakStretch,
+                              crossSpeed: DEFAULT_PARAMS.crossSpeed * mob.speed,
+                              leapSpeed: DEFAULT_PARAMS.leapSpeed * mob.speed,
+                              crossBase: [], crossReach: [] };
+            for (var f = 0; f <= 5; f++) {
+                mobParams.crossBase.push(DEFAULT_PARAMS.crossBase[f] * mob.crossCost);
+                mobParams.crossReach.push(DEFAULT_PARAMS.crossReach[f] * mob.crossReach);
             }
             return {
                 side: side,
-                hf: hf,
-                sizeScale: hf / REF_HF,
+                hand: hd,
+                child: hd.child,
+                hf: REF_HF * s1,
+                sizeScale: s1,
+                thumbScale: s1,
+                fingerScale: s2,
+                comfortScale: mob.comfort,
                 frest: frest,
-                weights: [null, 1.1, 1.0, 1.1, 0.9, 0.8],
+                weights: [null, 1.1, 1.0, 1.1, 0.9, mob.fifth],
                 bfactor: [null, 0.3, 1.0, 1.1, 0.8, 0.7],
-                params: mergeParams(options && options.params),
+                params: mergeParams(mobParams, options && options.params),
                 context: []
             };
+        }
+
+        // Scale of the span between two fingers relative to the reference hand.
+        function pairScale(h, f1, f2) {
+            if (!h) { return 1; }
+            return (f1 === 1 || f2 === 1) ? h.thumbScale : h.fingerScale;
         }
 
         // =========================================================================================
@@ -912,7 +1079,7 @@ MuseScore {
         function comfortDev(h, f1, f2, semis) {
             var r = COMFORT[Math.min(f1, f2) + "," + Math.max(f1, f2)];
             if (!r) { return 0; }
-            var mx = r[1] * (h ? h.sizeScale : 1);
+            var mx = r[1] * pairScale(h, f1, f2) * (h ? h.comfortScale : 1);
             if (semis < r[0]) { return r[0] - semis; }
             if (semis > mx) { return semis - mx; }
             return 0;
@@ -1767,13 +1934,14 @@ MuseScore {
                 var legato = na.end >= nb.start - 1e-6;
                 if (fa === fb && xba && legato && !(na.duration >= 4 || isLeap(h, na, nb) || na.staccato)) { return true; }
             } else if (na.isChord && nb.isChord && na.chordID === nb.chordID) {
-                var axba = Math.abs(xba) * 0.8 / h.hf;
+                var axba = Math.abs(xba);
                 if (fa === fb) { return true; }
                 if (fa < fb && h.side === "left") { return true; }
                 if (fa > fb && h.side === "right") { return true; }
                 var lo = Math.min(fa, fb), hi = Math.max(fa, fb);
                 var threshold = THRESHOLDS[lo + "," + hi];
-                if (threshold !== undefined && axba > threshold && !relaxSpan) { return true; }
+                // THRESHOLDS are stated for the reference hand (factor REF_HF / 0.8 from version 1).
+                if (threshold !== undefined && axba > threshold * (REF_HF / 0.8) * pairScale(h, lo, hi) && !relaxSpan) { return true; }
             }
             return false;
         }
@@ -2205,7 +2373,7 @@ MuseScore {
         // finish() (called automatically after the last step; safe to call again).
         // options: { params: {...overrides of DEFAULT_PARAMS} }
         function createGenerator(seq, side, size, options) {
-            var h = makeHand(side, size || "M", options);
+            var h = makeHand(side, size || "woman", options);
             var n = seq.length;
             var originalX = [];
             var i;
@@ -2318,7 +2486,7 @@ MuseScore {
 
         // Analysis only (diagnostics, tests).
         function analyze(seq, side, size, options) {
-            return analyzeSequence(seq, makeHand(side, size || "M", options));
+            return analyzeSequence(seq, makeHand(side, size || "woman", options));
         }
 
         return {
@@ -2327,12 +2495,14 @@ MuseScore {
             generate: generate,
             createGenerator: createGenerator,
             analyze: analyze,
-            sizes: SIZE_FACTORS,
+            sizes: HAND_PROFILE_ORDER.slice(),
+            handProfiles: HAND_PROFILES,
+            resolveHand: resolveHand,
             defaultParams: function () { return mergeParams(null); },
             knowledge: {
                 scaleTable: scaleTable, scaleFingering: scaleFingering, chromaticFinger: chromaticFinger,
                 arpeggioFingering: arpeggioFingering, chordShape: function (p, side, size) {
-                    return chordShape(p, side, makeHand(side, size || "M"));
+                    return chordShape(p, side, makeHand(side, size || "woman"));
                 },
                 generateCyclic: generateCyclic, forms: FORMS, majorTable: MAJOR_TABLE, harmonicTable: HARMONIC_TABLE
             },

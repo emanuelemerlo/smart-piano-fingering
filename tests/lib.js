@@ -64,7 +64,7 @@ function scalePitches(tonic, steps, octaves) {
 function run(core, items, side, size, opts) {
     const copy = JSON.parse(JSON.stringify(items));
     const seq = core.buildSequence(copy, 0.05);
-    core.generate(seq, side, size || "M", null, opts);
+    core.generate(seq, side, size || "woman", null, opts);
     const byId = {};
     seq.forEach(n => { byId[n.id] = n.finger; (n.dups || []).forEach(d => { byId[d] = n.finger; }); });
     return { fingers: items.map(it => byId[it.id]), seq: seq, warnings: seq.warnings || [], analysis: seq.analysis || null };
@@ -73,11 +73,18 @@ function run(core, items, side, size, opts) {
 // ------------------------------------------------------------------ independent physical checker
 // Generous physical limits (semitones, M hand) for two fingers on simultaneous keys. Beyond them a
 // chord cannot be held by an average adult hand; scaled linearly with the hand-size preset.
-const SIZE = { XXS: 0.33, XS: 0.46, S: 0.64, M: 0.82, L: 1.0, XL: 1.1, XXL: 1.2 };
+// Hand factor (0.82 = reference adult hand, span 20 cm) from the thumb-to-little-finger span of the
+// plugin's hand profiles; legacy preset names map to the profiles that replaced them.
+const SPAN = { child58: 14.5, child912: 17, small: 19, woman: 20, man: 22.5, large: 24,
+               XXS: 14.5, XS: 14.5, S: 17, M: 20, L: 22.5, XL: 24, XXL: 24 };
+const SIZE = {};
+const reach = span => 0.82 * (span - 2.5) / 17.5;   // reach grows as span minus ~2.5 cm (hand-span surveys)
+Object.keys(SPAN).forEach(k => { SIZE[k] = reach(SPAN[k]); });
+const sizeFactor = size => size && typeof size === "object" ? reach(Number(size.span) || 20) : (SIZE[size || "woman"] || 0.82);
 const MAXSPAN = { "1,2": 9, "1,3": 10, "1,4": 12, "1,5": 13, "2,3": 5, "2,4": 7, "2,5": 9, "3,4": 4, "3,5": 6, "4,5": 4 };
 
 function physicalCheck(items, fingers, side, size) {
-    const scale = (SIZE[size || "M"] || 0.82) / 0.82;
+    const scale = sizeFactor(size) / 0.82;
     const impossible = [], nonstandard = [];
     const notes = items.map((it, i) => ({ p: it.pitch, s: it.start, e: it.end, f: fingers[i], i: i }));
     notes.forEach(n => { if (!(n.f >= 1 && n.f <= 5)) { impossible.push("note " + n.i + " has no finger"); } });

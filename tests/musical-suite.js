@@ -197,8 +197,8 @@ function chordCases() {
     mk("octave", ["C4", "C5"], "right", "15", ["14"]);
     mk("octave", ["C3", "C4"], "left", "51", ["41"]);
     mk("five-note cluster", ["C4", "D4", "E4", "F4", "G4"], "right", "12345");
-    mk("C major root position", ["C4", "E4", "G4"], "right", "135", ["125"], "XS", "standard shape; 1-2-5 accepted for a small hand");
-    mk("C major + octave", ["C4", "E4", "G4", "C5"], "right", "1235", ["1245"], "XXL");
+    mk("C major root position", ["C4", "E4", "G4"], "right", "135", ["125"], "child58", "standard shape; 1-2-5 accepted for a small hand");
+    mk("C major + octave", ["C4", "E4", "G4", "C5"], "right", "1235", ["1245"], "large");
     return cases;
 }
 
@@ -352,7 +352,7 @@ function positionCases() {
         return bad.length ? "a returning key changes finger at " + bad.join(", ") : null;
     };
     const fig = (bass, mid, top) => [bass, mid, top, mid, top, mid];
-    ["M", "L"].forEach(size => {
+    ["woman", "man"].forEach(size => {
         cases.push({ group: "M. Hand position", name: "LH broken chord over a tenth, F2-C3-A3-C3-A3-C3 x2, then G (" + size + ")",
             items: line(fig("F2", "C3", "A3").concat(fig("F2", "C3", "A3"), fig("G2", "D3", "B3"), fig("G2", "D3", "B3")), 0.5),
             side: "left", size: size, min: "ACCEPTABLE VARIANT",
@@ -361,17 +361,17 @@ function positionCases() {
             ref: "teacher's correction of the 2.1.0 output on 'Venezia' (Saroglia/Martellotta) bars 19-26: the hand does not move, C3 stays on 3" });
     });
     cases.push({ group: "M. Hand position", name: "LH broken chord over a twelfth with the fifth on top, G2-D3-G3 (L)",
-        items: line(fig("G2", "D3", "G3").concat(fig("G2", "D3", "G3")), 0.5), side: "left", size: "L", min: "CANONICAL",
+        items: line(fig("G2", "D3", "G3").concat(fig("G2", "D3", "G3")), 0.5), side: "left", size: "man", min: "CANONICAL",
         expected: digits("521212521212"), check: sameKeySameFinger, ref: "'Venezia' bars 17-18 (output accepted by the teacher)" });
     cases.push({ group: "M. Hand position", name: "RH figure mirrored: B5-E5-G4-E5-G4-E5 (thumb not on the top note)",
-        items: line(["B5", "E5", "G4", "E5", "G4", "E5", "B5", "E5", "G4", "E5", "G4", "E5"], 0.5), side: "right", size: "L",
+        items: line(["B5", "E5", "G4", "E5", "G4", "E5", "B5", "E5", "G4", "E5", "G4", "E5"], 0.5), side: "right", size: "man",
         min: "VALID (no reference)", check: (r, c) => {
             const e = sameKeySameFinger(r, c);
             if (e) { return e; }
             return r.fingers[0] === 1 || r.fingers[6] === 1 ? "thumb on the top note B5" : null;
         }, ref: "same rule as the left-hand case, right hand" });
     cases.push({ group: "M. Hand position", name: "repeated two-note chord keeps its fingering",
-        items: line(["A2", "E3", ["A3", "E4"], "E3", ["A3", "E4"], "E3"], 0.5), side: "left", size: "L",
+        items: line(["A2", "E3", ["A3", "E4"], "E3", ["A3", "E4"], "E3"], 0.5), side: "left", size: "man",
         min: "VALID (no reference)", check: r => r.fingers[2] === r.fingers[5] && r.fingers[3] === r.fingers[6] ? null :
             "the repeated chord A3-E4 changes fingering (" + r.fingers.join("") + ")",
         ref: "'Venezia' bar 55: the hand stays on the chord" });
@@ -416,15 +416,15 @@ function anchorAndSizeCases() {
     cases.push({ group: "L. Anchors and hand size", name: "anchor clashing with a held finger is reported",
         items: conflict, side: "right", min: "PHYSICALLY IMPOSSIBLE",
         check: r => r.warnings.some(w => w.reason === "anchor-held") ? null : "no warning", ref: "report, do not hide" });
-    for (const size of ["XXS", "S", "XXL"]) {
-        cases.push({ group: "L. Anchors and hand size", name: "C major scale RH 2 oct with hand " + size,
+    for (const size of ["child58", "child912", "man", "large", { span: 15, child: true }]) {
+        cases.push({ group: "L. Anchors and hand size", name: "C major scale RH 2 oct with hand " + (typeof size === "string" ? size : "custom " + size.span + " cm child"),
             items: line(scalePitches(60, STEPS.major, 2), 0.25), side: "right", size,
             expected: twoOctaves(REF_MAJOR_RH.C, "right"), min: "CANONICAL", ref: "scales do not depend on hand size" });
     }
-    cases.push({ group: "L. Anchors and hand size", name: "C major arpeggio RH with hand XXS stays playable",
-        items: line([60, 64, 67, 72, 76, 79, 84], 0.25), side: "right", size: "XXS", min: "NON-STANDARD",
+    cases.push({ group: "L. Anchors and hand size", name: "C major arpeggio RH with a 5-8 year old child's hand stays playable",
+        items: line([60, 64, 67, 72, 76, 79, 84], 0.25), side: "right", size: "child58", min: "NON-STANDARD",
         expected: [1, 2, 3, 1, 2, 3, 5], ref: "variant allowed for very small hands" });
-    cases.push({ group: "L. Anchors and hand size", name: "wide chord C3-G3-E4 RH (M): impossible span is reported",
+    cases.push({ group: "L. Anchors and hand size", name: "wide chord C3-G3-E4 RH (woman): impossible span is reported",
         items: line([[48, 55, 64]], 1), side: "right", min: "PHYSICALLY IMPOSSIBLE",
         check: r => r.warnings.length ? null : "no warning for an unplayable chord", ref: "report, do not hide" });
     return cases;
