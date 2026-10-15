@@ -64,8 +64,8 @@ Do not edit the score while the calculation is running (it usually takes a few s
 | `smart-piano-fingering.png` | Plugin thumbnail referenced by `thumbnailName`. |
 | `tests/run-tests.js` | Node tests for the algorithm and the score adapter (mock score). |
 | `tests/qml-compat-check.js` | Static checks on the QML file and on version consistency. |
-| `tests/musescore-runtime.js` | Runs the real plugin inside MuseScore 4 (headless) and checks the exported fingerings. |
-| `tests/fixtures/` | Score used by the runtime test. |
+| `tests/musescore-runtime.js` | Runs the real plugin inside MuseScore 4 (headless) on 19 scenarios and checks the exported scores. |
+| `tests/runtime-scenarios.js`, `tests/lib/`, `tests/golden/`, `tests/fixtures/` | Scenarios, helpers, saved fingering results and a sample score for the runtime tests. |
 | `CHANGELOG.md` | Release history. |
 | `LICENSE` | GNU General Public License v3.0. |
 | `THIRD_PARTY_NOTICES.md` | Attribution for the algorithm's origin. |
@@ -84,7 +84,7 @@ node tests/musescore-runtime.js --musescore "<path to the MuseScore executable>"
 
 `run-tests.js` extracts the embedded JavaScript from the QML file and runs it against a mock score: algorithm and adapter logic (unisons, ties, tuplets, cross-staff, selection window, keep/replace rules).
 
-`musescore-runtime.js` loads the plugin in a real MuseScore 4 (headless, via `--extension`), applies the fingering to a small fixture score and checks the exported MusicXML. The GitHub Actions workflow runs it on Linux, Windows and macOS. It does **not** exercise the dialog (layout and button clicks), so manual verification is still required before a release; see [CONTRIBUTING.md](CONTRIBUTING.md) and [`tests/README.md`](tests/README.md).
+`musescore-runtime.js` loads the plugin in a real MuseScore 4 (headless, via `--extension`) and runs 19 scenarios on small scores (one or both hands, Keep existing on/off, chords, ties, tuplets, unisons, selection, cross-staff, percussion, rollback after a failure, all hand sizes, a 1536-note score) and checks the exported MusicXML. Golden files in `tests/golden/` pin the exact fingering, so any change of the algorithm shows up as a diff. The GitHub Actions workflow runs it on Linux, Windows and macOS. It does **not** exercise the dialog (layout and button clicks), so manual verification is still required before a release; see [CONTRIBUTING.md](CONTRIBUTING.md) and [`tests/README.md`](tests/README.md).
 
 ## License
 

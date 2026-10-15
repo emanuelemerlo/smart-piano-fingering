@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - Cross-platform CI (`.github/workflows/multiplatform.yml`): algorithm tests, static QML checks and a runtime test that runs the real plugin inside MuseScore 4 on Linux, Windows and macOS.
-- `tests/musescore-runtime.js`, `tests/qml-compat-check.js` and a MusicXML fixture.
+- `tests/musescore-runtime.js` with 19 scenarios (hands, keep/replace, chords, ties, tuplets, unisons, selection, cross-staff, percussion, rollback, hand sizes, a 1536-note score), golden files for the fingering, `tests/qml-compat-check.js` and a sample MusicXML score.
 
 ### Changed
 - CI actions updated to Node 24-based versions; Node 22 for the test scripts.

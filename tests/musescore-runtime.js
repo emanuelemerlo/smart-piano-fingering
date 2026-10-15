@@ -1,286 +1,214 @@
 #!/usr/bin/env node
-// Runtime test: runs the REAL plugin inside a real MuseScore 4 and checks the exported score.
+// Runtime tests: run the REAL plugin inside a real MuseScore 4 (headless) on a set of small
+// scores and check the exported result. See tests/lib/harness.js for how this works, and
+// tests/runtime-scenarios.js for what is checked.
 //
-// How it works
-//   MuseScore 4 has no "--plugin" command line option (Qt swallows it as one of its own
-//   options and prints 'No such plugin for spec ...'). What MuseScore 4 does offer is
-//       mscore -o out.musicxml --extension <uri> score
-//   which runs an extension/plugin on the score and then exports it. Legacy QML plugins
-//   found in the user Plugins folder get the URI
-//       musescore://extensions/v1/<folder>/<file>.qml        (lower-case)
-//
-//   The production plugin is a dialog that waits for a click on "Apply", which cannot be
-//   done headless. So this script builds a TEST COPY of smart-piano-fingering.qml in which
-//     1. pluginType: "dialog" is removed, and
-//     2. onRun additionally calls applyFingering() and drives runSlice() synchronously.
-//   Everything else (the whole QML tree, the embedded core and the adapter talking to the
-//   real MuseScore plugin API) is the production code, loaded by MuseScore's own QML engine.
-//
-// What it does NOT cover: the dialog's look and feel, and clicks on its buttons.
-//
-// Usage: node tests/musescore-runtime.js --musescore <path-to-mscore> [--timeout 120]
+// Usage:
+//   node tests/musescore-runtime.js --musescore <path-to-mscore> [options]
+//     --timeout <s>          per MuseScore run (default 120)
+//     --only a,b             run only these scenarios
+//     --list                 list the scenarios and exit
+//     --update-golden        rewrite tests/golden/*.json from the current output
+//     --write-fixtures <dir> write the generated test scores as .musicxml files and exit
+//     --verbose              print every passed check too
 // On Linux run it under a virtual display: xvfb-run -a node tests/musescore-runtime.js ...
+//
+// Golden files pin the exact fingering the algorithm produces for a few scores. The algorithm is
+// meant to stay stable between releases, so a change shows up as a diff. If the change is
+// intended, run with --update-golden and commit the files.
+// SPF_GOLDEN=warn turns golden mismatches into warnings.
 "use strict";
 
+const crypto = require("crypto");
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
-const { spawnSync } = require("child_process");
+const { createHarness } = require("./lib/harness");
+const fixtures = require("./lib/fixtures");
+const { scenarios } = require("./runtime-scenarios");
 
 const repo = path.join(__dirname, "..");
-const qmlSource = path.join(repo, "smart-piano-fingering.qml");
-const fixture = path.join(__dirname, "fixtures", "smoke.musicxml");
+const goldenDir = path.join(__dirname, "golden");
 
-// ---------------------------------------------------------------- arguments
 function arg(name, def) {
     const i = process.argv.indexOf("--" + name);
-    return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : def;
+    return i >= 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith("--") ? process.argv[i + 1] : def;
 }
+const flag = name => process.argv.indexOf("--" + name) >= 0;
+
+// ------------------------------------------------------------------ simple modes
+if (flag("list")) {
+    scenarios.forEach(s => console.log(s.name.padEnd(28) + s.description));
+    process.exit(0);
+}
+if (flag("write-fixtures")) {
+    const dir = arg("write-fixtures", null);
+    if (!dir) { console.error("Missing directory after --write-fixtures"); process.exit(2); }
+    fs.mkdirSync(dir, { recursive: true });
+    Object.keys(fixtures).forEach(k => fs.writeFileSync(path.join(dir, k + ".musicxml"), fixtures[k](), "utf8"));
+    console.log("Wrote " + Object.keys(fixtures).length + " scores to " + dir);
+    process.exit(0);
+}
+
 const musescore = arg("musescore", process.env.MUSESCORE_EXE);
 const timeoutSec = Number(arg("timeout", "120"));
-if (!musescore) {
-    console.error("Missing --musescore <path> (or MUSESCORE_EXE).");
-    process.exit(2);
-}
-if (!fs.existsSync(musescore)) {
-    console.error("MuseScore executable not found: " + musescore);
-    process.exit(2);
+if (!musescore) { console.error("Missing --musescore <path> (or MUSESCORE_EXE)."); process.exit(2); }
+if (!fs.existsSync(musescore)) { console.error("MuseScore executable not found: " + musescore); process.exit(2); }
+
+const only = arg("only", null);
+const selected = only ? scenarios.filter(s => only.split(",").indexOf(s.name) >= 0) : scenarios;
+if (only && !selected.length) { console.error("No scenario matches --only " + only + ". Use --list."); process.exit(2); }
+const updateGolden = flag("update-golden");
+const verbose = flag("verbose");
+const goldenWarnOnly = process.env.SPF_GOLDEN === "warn";
+
+const harness = createHarness({
+    musescore: musescore, timeoutSec: timeoutSec,
+    qmlSource: path.join(repo, "smart-piano-fingering.qml"),
+});
+
+// ------------------------------------------------------------------ golden files
+function goldenLines(notes) {
+    return notes.filter(x => !x.rest && !x.grace).map(x =>
+        "m" + x.measure + " s" + x.staff + " v" + x.voice + " @" + x.onset + " " + x.midi + "=" +
+        (x.fingers.length ? x.fingers.join("+") : "-"));
 }
 
-// MuseScore 4 looks for user plugins in <Qt DocumentsLocation>/MuseScore4/Plugins.
-// On Linux/macOS that is ~/Documents; on Windows it is the "Documents" known folder, which
-// can differ from %USERPROFILE%\Documents (e.g. OneDrive redirection). We install the test
-// copy in every distinct candidate, so whichever one MuseScore scans will find it.
-function documentsCandidates() {
-    const list = [];
-    if (process.env.SPF_PLUGINS_DIR) { return [process.env.SPF_PLUGINS_DIR]; }
-    if (process.platform === "win32") {
-        const r = spawnSync("powershell", ["-NoProfile", "-Command",
-            "[Environment]::GetFolderPath('MyDocuments')"], { encoding: "utf8" });
-        const d = (r.stdout || "").trim();
-        if (d) { list.push(path.join(d, "MuseScore4", "Plugins")); }
+function compareGolden(key, notes) {
+    const file = path.join(goldenDir, key + ".json");
+    const lines = goldenLines(notes);
+    const sha = crypto.createHash("sha1").update(lines.join("\n")).digest("hex");
+    const big = lines.length > 300;
+    const current = big ? { count: lines.length, sha1: sha, head: lines.slice(0, 40) } : { count: lines.length, lines: lines };
+    if (updateGolden) {
+        fs.mkdirSync(goldenDir, { recursive: true });
+        fs.writeFileSync(file, JSON.stringify(current, null, 1) + "\n", "utf8");
+        return { ok: true, message: "golden " + key + " updated (" + lines.length + " notes)" };
     }
-    list.push(path.join(os.homedir(), "Documents", "MuseScore4", "Plugins"));
-    return Array.from(new Set(list.map(x => path.normalize(x))));
-}
-const pluginsRoots = documentsCandidates();
-const testDirName = "spf-ci-test";
-const probeDirName = "spf-ci-probe";
-const uriFor = name => "musescore://extensions/v1/" + name + "/" + name + ".qml";
-const extensionUri = uriFor(testDirName);
-const createdDirs = [];
-
-// ---------------------------------------------------------------- build the test copy
-function buildTestCopy() {
-    let src = fs.readFileSync(qmlSource, "utf8").replace(/\r\n/g, "\n");
-
-    const anchor = 'status.text = n === 0 ? qsTr("No open score found.") : qsTr("Staves in score: ") + n;';
-    if (src.split(anchor).length !== 2) {
-        throw new Error("Cannot patch onRun: anchor line not found exactly once. " +
-            "The onRun handler changed; update the anchor in tests/musescore-runtime.js.");
+    if (!fs.existsSync(file)) {
+        return { ok: false, message: "golden " + key + ": no file; run with --update-golden to create it" };
     }
-    const hook = anchor +
-        "\n        if (n > 0) { applyFingering(); var guard = 0; while (runCtx && guard++ < 100000) { runSlice(); } }";
-    src = src.replace(anchor, hook);
-
-    const before = src;
-    src = src.replace(/^[ \t]*pluginType:\s*"dialog"[ \t]*$/m, "");
-    if (src === before) {
-        throw new Error('Cannot find pluginType: "dialog" to remove.');
+    const saved = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (big) {
+        const same = saved.count === current.count && saved.sha1 === current.sha1;
+        let detail = "";
+        if (!same) {
+            const k = current.head.findIndex((l, i) => l !== saved.head[i]);
+            detail = k >= 0 ? " (first difference among the first 40 notes: was \"" + saved.head[k] + "\", now \"" + current.head[k] + "\")"
+                : " (the first 40 notes are unchanged; later notes differ)";
+        }
+        return { ok: same, message: "golden " + key + ": fingering of " + lines.length + " notes matches the saved result" + (same ? "" : detail) };
     }
-
-    installPlugin(testDirName, src);
-}
-
-function installPlugin(name, qmlText) {
-    for (const root of pluginsRoots) {
-        const dir = path.join(root, name);
-        fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(path.join(dir, name + ".qml"), qmlText, "utf8");
-        createdDirs.push(dir);
+    const diffs = [];
+    for (let i = 0; i < Math.max(saved.lines.length, lines.length); i++) {
+        if (saved.lines[i] !== lines[i]) { diffs.push("#" + i + ": was \"" + saved.lines[i] + "\", now \"" + lines[i] + "\""); }
     }
-}
-
-// Minimal plugin: only proves that MuseScore finds and runs a plugin from the folders above.
-const PROBE_TITLE = "SPF_PROBE_OK";
-const probeQml = [
-    "import QtQuick 2.9", "import MuseScore 3.0", "MuseScore {",
-    '    title: "SPF probe"', "    requiresScore: true", "    onRun: {",
-    "        curScore.startCmd();",
-    '        curScore.setMetaTag("workTitle", "' + PROBE_TITLE + '");',
-    "        curScore.endCmd();", "    }", "}", ""].join("\n");
-
-// ---------------------------------------------------------------- run MuseScore
-// On Windows the MSI keeps the Qt QML modules in <install>/qml, next to bin/. MuseScore's GUI
-// adds that folder to its own QML engine, but the engine that runs plugins in console mode
-// did not find QtQuick.Controls / QtQuick.Layouts ("module ... is not installed", exit 202).
-// Pointing QML2_IMPORT_PATH at it fixes that. Harmless where the folder does not exist.
-function spawnEnv() {
-    const env = Object.assign({}, process.env);
-    const qmlDir = path.resolve(path.dirname(musescore), "..", "qml");
-    if (fs.existsSync(path.join(qmlDir, "QtQuick", "Controls"))) {
-        env.QML2_IMPORT_PATH = env.QML2_IMPORT_PATH ? qmlDir + path.delimiter + env.QML2_IMPORT_PATH : qmlDir;
-        console.log("  QML2_IMPORT_PATH=" + env.QML2_IMPORT_PATH);
-    }
-    return env;
-}
-
-function runMuseScore(outFile, uri) {
-    const args = ["-o", outFile];
-    if (uri) { args.push("--extension", uri); }
-    args.push(fixture);
-    console.log("  $ " + [musescore].concat(args).map(a => (/\s/.test(a) ? '"' + a + '"' : a)).join(" "));
-    const r = spawnSync(musescore, args, {
-        encoding: "utf8",
-        env: spawnEnv(),
-        timeout: timeoutSec * 1000,
-        killSignal: "SIGKILL",
-        maxBuffer: 64 * 1024 * 1024,
-    });
     return {
-        status: r.status,
-        signal: r.signal,
-        timedOut: !!(r.error && r.error.code === "ETIMEDOUT"),
-        output: (r.stdout || "") + (r.stderr || ""),
-        spawnError: r.error && r.error.code !== "ETIMEDOUT" ? r.error.message : null,
+        ok: diffs.length === 0,
+        message: "golden " + key + ": fingering matches the saved result" +
+            (diffs.length ? " (" + diffs.length + " difference(s): " + diffs.slice(0, 6).join("; ") + ")" : ""),
     };
 }
 
-// MuseScore writes its own log files; in console mode this is the only place where QML
-// load errors appear. Returns ERROR lines from logs written since `sinceMs`.
-function museScoreLogErrors(sinceMs) {
-    const home = os.homedir();
-    const dirs = [
-        path.join(process.env.LOCALAPPDATA || "", "MuseScore", "MuseScore4", "logs"),
-        path.join(home, "Library", "Application Support", "MuseScore", "MuseScore4", "logs"),
-        path.join(home, ".local", "share", "MuseScore", "MuseScore4", "logs"),
-    ];
-    const lines = [];
-    for (const d of dirs) {
-        let names = [];
-        try { names = fs.readdirSync(d).filter(n => n.endsWith(".log")); } catch (e) { continue; }
-        for (const n of names) {
-            const f = path.join(d, n);
-            try {
-                if (fs.statSync(f).mtimeMs < sinceMs) { continue; }
-                fs.readFileSync(f, "utf8").split(/\r?\n/).forEach(l => {
-                    if (/\| ERROR \|/.test(l) && !/plugins\.json|CrashHandler|crash handler/.test(l)) { lines.push(l.slice(0, 500)); }
-                });
-            } catch (e) { /* ignore */ }
-        }
-    }
-    return Array.from(new Set(lines));
-}
+// ------------------------------------------------------------------ running
+let totalFailed = 0;
+let environmentProblem = false;   // MuseScore itself failed to run (not just an assertion)
+const summary = [];
 
-function fingerings(file) {
-    const xml = fs.readFileSync(file, "utf8");
-    const out = [];
-    const re = /<fingering\b[^>]*>([^<]*)<\/fingering>/g;
-    let m;
-    while ((m = re.exec(xml)) !== null) { out.push(m[1].trim()); }
-    return out;
-}
-
-// NOTE: in console mode MuseScore prints nothing about QML errors, so the reliable signals
-// are the exit code (a QML syntax error gave exit 202 in our tests) and the fingerings that
-// end up in the exported score (a runtime error while writing gives 0 fingerings).
-
-// Exit status check. MuseScore 4.7.4 on macOS (arm64) aborts AFTER finishing the conversion
-// ("libc++abi: ... mutex lock failed", logged "Goodbye!! code: 0"), also without any plugin.
-// That is a MuseScore shutdown crash, not a plugin failure: if the process died from a signal
-// but the output file was written, we report a warning instead of a failure.
-function exitOk(label, r, outFile) {
-    if (!r.timedOut && r.status === 0) { check(true, label + " (exit 0)"); return; }
-    if (r.signal && fs.existsSync(outFile)) {
-        console.log("  warn " + label + ": MuseScore was killed by " + r.signal +
-            " after writing the output (shutdown crash, ignored)");
-        return;
-    }
-    check(false, label + " (exit " + r.status + (r.signal ? ", signal " + r.signal : "") + (r.timedOut ? ", timeout" : "") + ")");
-}
-
-// Runs a minimal plugin to tell "MuseScore cannot find/run any plugin" (path or URI problem)
-// from "it runs plugins but ours does not work".
 function diagnose() {
-    console.log("Diagnosis");
-    createdDirs.forEach(d => {
-        let listing = "missing";
-        try { listing = fs.readdirSync(d).join(", "); } catch (e) { /* missing */ }
-        console.log("  " + d + " -> " + listing);
-    });
-    installPlugin(probeDirName, probeQml);
-    const out = path.join(work, "probe.musicxml");
-    const r = runMuseScore(out, uriFor(probeDirName));
-    diag += "--- probe run ---\n" + r.output;
-    const ok = fs.existsSync(out) && fs.readFileSync(out, "utf8").includes(PROBE_TITLE);
-    console.log("  probe exit code: " + r.status + (r.timedOut ? " (timeout)" : ""));
-    console.log(ok
+    console.log("\nDiagnosis");
+    harness.roots.forEach(r => console.log("  plugin folder candidate: " + r));
+    const p = harness.probe(path.join(__dirname, "fixtures", "smoke.musicxml"));
+    console.log("  trivial probe plugin: exit " + p.exit.status + (p.exit.timedOut ? " (timeout)" : "") + " -> " + (p.ok ? "worked" : "did NOT run"));
+    console.log(p.ok
         ? "  => MuseScore finds and runs a trivial plugin here: plugin folder and URI are fine; see the MuseScore errors below."
-        : "  => MuseScore did NOT run even a trivial plugin: plugin folder or --extension URI problem on this platform.");
-    const errs = museScoreLogErrors(startedAt);
+        : (p.exit.status === 0
+            ? "  => MuseScore ran but did NOT execute even a trivial plugin: plugin folder or --extension URI problem on this platform."
+            : "  => MuseScore itself failed (exit " + p.exit.status + (p.exit.signal ? ", signal " + p.exit.signal : "") + "): startup or crash problem, see the output below."));
+    const errs = harness.museScoreLogErrors();
     console.log("  MuseScore log errors (" + errs.length + "):");
     errs.slice(0, 15).forEach(l => console.log("    " + l));
-    diag += "--- MuseScore log errors ---\n" + errs.join("\n") + "\n";
+    const logFile = process.env.SPF_RUNTIME_LOG || path.join(harness.tmp, "musescore-output.log");
+    try {
+        fs.writeFileSync(logFile, harness.diagnostics() + "\n--- MuseScore log errors ---\n" + errs.join("\n") + "\n", "utf8");
+        console.log("  full MuseScore output saved to " + logFile);
+    } catch (e) { /* ignore */ }
 }
 
-// ---------------------------------------------------------------- test
-let failed = 0;
-function check(ok, msg) {
-    console.log((ok ? "  ok   " : "  FAIL ") + msg);
-    if (!ok) { failed++; }
+function runScenario(s) {
+    const t0 = Date.now();
+    let checks = 0, failed = 0;
+    const lines = [];
+    const ctx = {
+        fixtureFile: name => path.join(__dirname, "fixtures", name),
+        file: (name, xml) => harness.writeFixture(name, xml),
+        run: (fixture, cfg) => {
+            const r = harness.runPlugin(fixture, cfg || {});
+            if (r.problem) { environmentProblem = true; }
+            if (r.toleratedCrash) {
+                const w = "  warn MuseScore was killed by " + r.exit.signal + " after writing the output (shutdown crash, ignored)";
+                if (lines.indexOf(w) < 0) { lines.push(w); }
+            }
+            return r;
+        },
+        check: (ok, message) => {
+            checks++;
+            if (!ok) { failed++; lines.push("  FAIL " + message); } else if (verbose) { lines.push("  ok   " + message); }
+        },
+        info: message => lines.push("  info " + message),
+        golden: (key, notes) => {
+            const g = compareGolden(key, notes);
+            checks++;
+            if (g.ok) { if (verbose || updateGolden) { lines.push("  ok   " + g.message); } }
+            else if (goldenWarnOnly) { lines.push("  warn " + g.message); }
+            else { failed++; lines.push("  FAIL " + g.message); }
+        },
+    };
+    try {
+        s.run(ctx);
+    } catch (e) {
+        failed++;
+        lines.push("  FAIL unexpected error: " + (e && e.stack ? e.stack.split("\n").slice(0, 3).join(" | ") : e));
+    }
+    const secs = ((Date.now() - t0) / 1000).toFixed(1);
+    console.log((failed ? "FAIL " : "PASS ") + s.name.padEnd(28) + checks + " checks, " + secs + " s");
+    lines.forEach(l => console.log(l));
+    summary.push({ name: s.name, failed: failed, checks: checks, secs: secs });
+    totalFailed += failed;
 }
 
-const startedAt = Date.now() - 2000;
-const work = fs.mkdtempSync(path.join(os.tmpdir(), "spf-runtime-"));
-let diag = "";
 try {
-    console.log("MuseScore runtime test");
+    console.log("MuseScore runtime tests");
     console.log("  platform: " + process.platform + " " + process.arch + ", node " + process.version);
-    console.log("  plugin folder candidates:");
-    pluginsRoots.forEach(r => console.log("    " + r + (fs.existsSync(path.dirname(r)) ? "" : "   (parent MuseScore4 folder does not exist yet)")));
+    console.log("  plugin folder candidates: " + harness.roots.join(", "));
 
-    // 1. Control run: no plugin. Proves the fixture has no fingering by itself, so a
-    //    positive result below can only come from the plugin.
-    console.log("Control run (no plugin)");
-    const baseOut = path.join(work, "baseline.musicxml");
-    const base = runMuseScore(baseOut, null);
-    diag += "--- control run ---\n" + base.output;
-    check(fs.existsSync(baseOut), "control output file written");
-    exitOk("MuseScore converts the fixture", base, baseOut);
-    if (fs.existsSync(baseOut)) {
-        check(fingerings(baseOut).length === 0, "fixture contains no fingering before the plugin runs");
+    // Preflight: MuseScore can convert the fixture, and the fixture has no fingering by itself,
+    // so every fingering found later comes from the plugin.
+    const base = harness.convertOnly(path.join(__dirname, "fixtures", "smoke.musicxml"));
+    if (base.toleratedCrash) { console.log("  warn MuseScore was killed by a signal after writing the output (shutdown crash, ignored)"); }
+    const pre = !base.problem && base.notes.filter(x => x.fingers.length).length === 0;
+    console.log((pre ? "PASS " : "FAIL ") + "preflight".padEnd(28) + (base.problem ? base.problem : "MuseScore converts the fixture; no fingering before the plugin runs"));
+    if (!pre) { totalFailed++; environmentProblem = true; }
+    else {
+        for (const s of selected) {
+            runScenario(s);
+            if (environmentProblem) {
+                console.log("Stopping: MuseScore itself failed to run, so the remaining scenarios would only repeat the problem.");
+                break;
+            }
+        }
     }
-
-    // 2. Real run with the plugin.
-    console.log("Plugin run");
-    buildTestCopy();
-    const out = path.join(work, "with-plugin.musicxml");
-    const run = runMuseScore(out, extensionUri);
-    diag += "--- plugin run ---\n" + run.output;
-    if (run.spawnError) { console.log("  spawn error: " + run.spawnError); }
-    check(!run.timedOut, "MuseScore finished within " + timeoutSec + " s");
-    check(fs.existsSync(out), "output file written");
-    exitOk("MuseScore exit status", run, out);
-
-    if (fs.existsSync(out)) {
-        const f = fingerings(out);
-        console.log("  fingerings found: [" + f.join(", ") + "]");
-        // Fixture: 4 quarter notes in the right hand + 1 whole note in the left hand.
-        check(f.length === 5, "5 fingerings written (4 right hand + 1 left hand), got " + f.length);
-        check(f.every(x => /^[1-5]$/.test(x)), "every fingering is a digit 1-5");
-    }
-    if (failed) { diagnose(); }
+    if (environmentProblem) { diagnose(); }
 } catch (e) {
-    failed++;
-    console.error("  FAIL unexpected error: " + e.message);
+    totalFailed++;
+    console.error("FAIL unexpected error: " + e.message);
 } finally {
-    createdDirs.forEach(d => { try { fs.rmSync(d, { recursive: true, force: true }); } catch (e) { /* ignore */ } });
-    if (failed) {
-        const logFile = process.env.SPF_RUNTIME_LOG || path.join(work, "musescore-output.log");
-        try { fs.writeFileSync(logFile, diag, "utf8"); console.log("  MuseScore output saved to " + logFile); } catch (e) { /* ignore */ }
-        console.log("\n--- last 4000 characters of MuseScore output ---\n" + diag.slice(-4000) + "\n--- end ---");
-    }
+    harness.cleanup();
 }
 
-console.log(failed ? "\n" + failed + " check(s) failed" : "\nMuseScore runtime test passed.");
-process.exit(failed ? 1 : 0);
+console.log("\n" + summary.length + " scenario(s): " + summary.filter(s => !s.failed).length + " passed, " +
+    summary.filter(s => s.failed).length + " failed" + (updateGolden ? " (golden files updated)" : ""));
+if (environmentProblem) {
+    const d = harness.diagnostics();
+    console.log("\n--- last 3000 characters of MuseScore output ---\n" + d.slice(-3000) + "\n--- end ---");
+}
+process.exit(totalFailed ? 1 : 0);
