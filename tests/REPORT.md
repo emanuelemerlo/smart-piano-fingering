@@ -288,7 +288,7 @@ Classes: CANONICAL = the standard fingering; ACCEPTABLE VARIANT = a fingering te
 | 264 | E. Chords | C major + octave RH (large) | 1235 | 1235 | CANONICAL | pass |  |
 | 265 | F. Repeated notes | slow repeated C (half notes) keeps the finger | – | 1111 | VALID (no reference) | pass |  |
 | 266 | F. Repeated notes | fast repeated C (16ths) alternates fingers | – | 43212121 | VALID (no reference) | pass |  |
-| 267 | F. Repeated notes | very fast long repetition (16 x 32nds) alternates | – | 4321212121212121 | VALID (no reference) | pass |  |
+| 267 | F. Repeated notes | very fast long repetition (16 x 32nds) alternates | – | 3212121212121212 | VALID (no reference) | pass |  |
 | 268 | F. Repeated notes | fast repetition LH alternates | – | 432121 | VALID (no reference) | pass |  |
 | 269 | F. Repeated notes | fast repetition avoids the 5th finger | – | 43212121 | VALID (no reference) | pass |  |
 | 270 | F. Repeated notes | fast repetition then scale up | – | 43212312345 | VALID (no reference) | pass |  |
@@ -322,7 +322,7 @@ Classes: CANONICAL = the standard fingering; ACCEPTABLE VARIANT = a fingering te
 | 298 | M. Hand position | RH figure mirrored: B5-E5-G4-E5-G4-E5 (thumb not on the top note) | – | 531313531313 | VALID (no reference) | pass |  |
 | 299 | M. Hand position | repeated two-note chord keeps its fingering | – | 53213213 | VALID (no reference) | pass |  |
 | 300 | K. Recognition limits | neighbour-note figure is a five-finger position, not a scale | 12132435 | 12132435 | CANONICAL | pass |  |
-| 301 | K. Recognition limits | line in thirds: no scale rules applied | – | 13243541 | VALID (no reference) | pass |  |
+| 301 | K. Recognition limits | line in thirds: no scale rules applied | – | 13243545 | VALID (no reference) | pass |  |
 | 302 | K. Recognition limits | modal run G to G on white keys (ambiguous key) stays soft | 23412312 | 23412312 | CANONICAL | pass |  |
 | 303 | K. Recognition limits | scale embedded in a phrase with dotted rhythm | – | 351231234131 | VALID (no reference) | pass |  |
 | 304 | K. Recognition limits | scale from the 5th degree with key signature (G major) | 23412312 | 23412312 | CANONICAL | pass |  |

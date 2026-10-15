@@ -477,7 +477,8 @@ MuseScore {
         //  HARD CONSTRAINTS (skip(), forbidden fingers, options of the search):
         //   H1 notes of one chord: distinct fingers, ordered with pitch (RH 1..5 low->high,
         //      LH 5..1), finger-pair spans within THRESHOLDS scaled by the hand size;
-        //   H2 a finger holding a sounding note cannot play another key (forbiddenFingers, heldPairs);
+        //   H2 a finger holding a sounding note cannot play another key, and no other finger passes
+        //      over or under it while it holds the key (forbiddenFingers, heldPairs);
         //   H3 the same finger on two different keys in a legato succession (allowed on leaps,
         //      staccato notes and long notes, where the finger has time to lift and move);
         //   H4 crossing of two long fingers (e.g. 3 over 4) in a succession (allowed on leaps);
@@ -514,7 +515,7 @@ MuseScore {
         //            independent 4th finger, a shorter and harder thumb passage, a weaker 5th
         //            finger, slower repositioning (see MOBILITY).
         // Reference (all semitone and cm limits of this file are stated for it): the "woman"
-        // profile, span 20 cm (mean adult female pianist), identical to the former "M" preset.
+        // profile, span 20 cm (mean adult female pianist), whose chord limits are those of the former "M" preset.
         // Surveyed means: men 22.6 cm, women 20.1 cm; children 6-17: 14.7-23.4 cm. A span of
         // 17 cm reaches an octave at the edge, 19.3 a ninth at the edge, 21.6 a tenth at the edge.
         var REF_SPAN = 20.0;
@@ -615,7 +616,7 @@ MuseScore {
 
             // Repeated notes. Fast repetitions are played by changing fingers (3-2-1, 4-3-2-1, 2-1);
             // slow repetitions keep the finger.
-            repSame: 6.0, repChange: 1.5, repOrder: 0.8, repSpread: 0.5,
+            repSame: 6.0, repChange: 1.5, repOrder: 0.8, repSpread: 1.5,
             repFifth: 1.0,      // the 5th finger is too weak for repeated-note articulation
             repFastIOI: 0.25,   // inter-onset interval (beats) at or below which a repetition is "fast"
             repSlowIOI: 0.75,   // at or above which it is "slow"
@@ -633,7 +634,8 @@ MuseScore {
             // of a different finger; looked back at most recurNotes notes and recurBeats beats.
             // When the finger IS kept, the hand is already shaped over those keys: the movement cost
             // of the transition (not the per-note costs) is multiplied by recurMove.
-            recurKeep: 4.0, recurNotes: 4, recurSpan: 12, recurBeats: 4.0, recurMove: 0.1,
+            // A repeated chord that changes fingering is never right: recurChordKeep per member.
+            recurKeep: 4.0, recurChordKeep: 10.0, recurNotes: 4, recurSpan: 12, recurBeats: 4.0, recurMove: 0.1,
 
             // Leaps: beyond leapSemis (M hand) the hand must be repositioned; distance between fingers
             // no longer matters and the landing finger is chosen by what follows.
@@ -653,6 +655,13 @@ MuseScore {
 
             // Movement cost multiplier for transitions that follow a recognised pattern.
             trainedFactor: 0.4,
+            // Weight, in the biomechanical cost, of the distance from the relaxed spacing of the fingers
+            // when the span is within the comfortable range of the hand (outside it the full distance
+            // beyond the range counts).
+            restWeight: 0.3,
+            // Extra comfortable span (cm, reference hand) for two keys played in succession, when the
+            // hand can pivot on the finger that played the first one.
+            pivotCm: 2.0,
             // Weight of the hand-position comfort cost between successive single notes (per semitone
             // outside the comfortable span of the two fingers, see COMFORT).
             wComfort: 1.0,
@@ -663,6 +672,8 @@ MuseScore {
             weakStretch: 2.0,
             // Legato crossing of two long fingers between a chord and the next note.
             chordCrossing: 10.0,
+            // Repositioning the hand onto a chord after a single note, in units of leapCost.
+            chordShift: 3.0,
             // Weight of the geometric spread cost between members of one chord (see stepCost).
             chordSpreadWeight: 0.4,
 
@@ -746,9 +757,22 @@ MuseScore {
                 mobParams.crossBase.push(DEFAULT_PARAMS.crossBase[f] * mob.crossCost);
                 mobParams.crossReach.push(DEFAULT_PARAMS.crossReach[f] * mob.crossReach);
             }
+            // Per finger pair: widest span with minimal comfort (maxCm, the chord limit) and widest span
+            // played without tension (comfCm). Proposal: comfortable = span - 5 cm for 1-5, the limit
+            // span - 2.5 cm (SPAN_OFFSET); the same ratio is used for every pair, times the mobility.
+            var comfRatio = Math.max(0.5, (hd.span - 2 * SPAN_OFFSET) / (hd.span - SPAN_OFFSET)) * mob.comfort;
+            var maxCm = {}, comfCm = {};
+            for (var pk in THRESHOLDS) {
+                if (!THRESHOLDS.hasOwnProperty(pk)) { continue; }
+                var thumbPair = pk.charAt(0) === "1";
+                maxCm[pk] = THRESHOLDS[pk] * (REF_HF / 0.8) * (thumbPair ? s1 : s2);
+                comfCm[pk] = maxCm[pk] * comfRatio;
+            }
             return {
                 side: side,
                 hand: hd,
+                maxCm: maxCm,
+                comfCm: comfCm,
                 child: hd.child,
                 hf: REF_HF * s1,
                 sizeScale: s1,
@@ -1072,15 +1096,31 @@ MuseScore {
         }
 
         // Comfortable span (semitones, M hand) of two fingers of the same hand position.
+        var CM_PER_SEMITONE = 16.5 / 12;
+        // Pairs whose comfortable span is a smaller part of their maximum when the keys are struck in
+        // succession: thumb and index open very wide in a chord, but alternating on a wide interval
+        // gives the hand no support (a broken sixth is played 1-3 / 1-4, not 1-2).
+        var COMFORT_SEQ = { "1,2": 0.75 };
+        var REF_HAND = null;
+        function refHand() { if (!REF_HAND) { REF_HAND = makeHand("right", "woman"); } return REF_HAND; }
+        // Narrowest comfortable span (semitones, [0]) of each finger pair; the widest one ([1], used
+        // before version 2.2) now comes from the hand profile (makeHand: comfCm).
         var COMFORT = {
             "1,2": [1, 5], "1,3": [3, 7], "1,4": [5, 9], "1,5": [7, 12], "2,3": [1, 3],
             "2,4": [3, 5], "2,5": [4, 8], "3,4": [1, 2], "3,5": [2, 5], "4,5": [1, 3]
         };
-        function comfortDev(h, f1, f2, semis) {
-            var r = COMFORT[Math.min(f1, f2) + "," + Math.max(f1, f2)];
+        // minRelief / maxExtra (semitones, optional): narrower minimum (white + black key) and wider
+        // maximum (keys struck in succession, the hand pivots) than for a chord.
+        function comfortDev(h, f1, f2, semis, minRelief, maxExtra) {
+            var key = Math.min(f1, f2) + "," + Math.max(f1, f2);
+            var r = COMFORT[key];
             if (!r) { return 0; }
-            var mx = r[1] * pairScale(h, f1, f2) * (h ? h.comfortScale : 1);
-            if (semis < r[0]) { return r[0] - semis; }
+            // Widest comfortable span of the pair for this hand (cm -> semitones on average); keys in
+            // succession (maxExtra given) use the succession factor of the pair.
+            var mx = (h || refHand()).comfCm[key] * (maxExtra !== undefined ? (COMFORT_SEQ[key] || 1) : 1) /
+                     CM_PER_SEMITONE + (maxExtra || 0);
+            var mn = Math.max(0, r[0] - (minRelief || 0));
+            if (semis < mn) { return mn - semis; }
             if (semis > mx) { return semis - mx; }
             return 0;
         }
@@ -1104,7 +1144,7 @@ MuseScore {
         //    inversion), LH 5-3-1 / 5-3-1 / 5-2-1: the 2nd finger goes to the side of the fourth.
         //  - Other shapes: every increasing finger assignment is scored by how far each adjacent pair
         //    is from its comfortable span (COMFORT, scaled by hand size); 1 and 5 on the outer notes
-        //    are preferred when the shape spans a sixth or more; ties give no preference at all.
+        //    are preferred when the shape spans a fifth or more; ties give no preference at all.
         function chordShape(pitches, side, h) {
             var k = pitches.length;
             if (k < 2 || k > 5) { return null; }
@@ -1123,7 +1163,8 @@ MuseScore {
                     var f = side === "right" ? acc : acc.slice().reverse();
                     var cost = 0;
                     for (var j = 1; j < k; j++) { cost += comfortDev(h, f[j - 1], f[j], pitches[j] - pitches[j - 1]); }
-                    if (span >= 9 && k >= 2) {
+                    // outer fingers on the outer notes from a fifth upwards (a sixth before 2.2)
+                    if (span >= 7 && k >= 2) {
                         var lo = side === "right" ? f[0] : f[k - 1], hi = side === "right" ? f[k - 1] : f[0];
                         if (lo !== 1) { cost += 1; }
                         if (hi !== 5) { cost += 1; }
@@ -1949,9 +1990,35 @@ MuseScore {
         // BIOMECHANICAL cost (unchanged from version 1): distance between the key and the rest
         // position of the finger relative to the previous one, divided by the available time, and
         // divided by the strength of the finger (and by its ability on black keys).
-        function transitionCost(h, fa, fb, na, nb) {
-            var fingerPos = (fb === fa) ? na.x : (h.frest[fb] - h.frest[fa]) + na.x;
-            var dx = Math.abs(nb.x - fingerPos);
+        // inPosition: the hand returns to keys it is already shaped over (hand position memory):
+        // the movement towards the relaxed spacing is then reduced (recurMove), a stretch beyond the
+        // comfortable span is not - an open hand stays tiring at every stroke.
+        function transitionCost(h, fa, fb, na, nb, inPosition) {
+            var dx;
+            if (fb === fa) {
+                dx = Math.abs(nb.x - na.x);
+            } else {
+                // Two fingers of the same hand: free within the pair's comfortable span for THIS hand
+                // (profile), costly outside it; a small term keeps the preference for the natural
+                // spacing of the relaxed hand (rest positions). Version 1 measured only the distance
+                // from the rest position, so it ignored how far a given hand opens comfortably
+                // (1-3 on a sixth cost as much as a real stretch even for a large hand).
+                var key = Math.min(fa, fb) + "," + Math.max(fa, fb);
+                var dir = fb > fa ? 1 : -1;
+                var d = (nb.x - na.x) * dir;
+                var lo = COMFORT[key][0] * CM_PER_SEMITONE, hi = h.comfCm[key];
+                // A white and a black key: the black key lies deeper in the keyboard, where the long
+                // finger reaches it over the short one, so the two fingers are not cramped (1-3 on
+                // C-C# in the chromatic scale).
+                if (na.isBlack !== nb.isBlack) { lo = Math.max(0, lo - WHITE_KEY_CM); }
+                // Keys struck one after the other (not together): the hand pivots on the first finger
+                // and opens a little further than for a chord (pivotCm, scaled with the hand).
+                var together = na.isChord && nb.isChord && na.chordID === nb.chordID;
+                if (!together) { hi = hi * (COMFORT_SEQ[key] || 1) + h.params.pivotCm * h.thumbScale; }
+                var outside = d < lo ? lo - d : (d > hi ? d - hi : 0);
+                var rest = Math.abs(nb.x - (na.x + h.frest[fb] - h.frest[fa]));
+                dx = outside + h.params.restWeight * rest * (inPosition ? h.params.recurMove : 1);
+            }
             var dt = Math.abs(nb.time - na.time) + 0.1;
             var v = dx / dt;
             var weight = h.weights[fb] || 1.0;
@@ -2017,32 +2084,28 @@ MuseScore {
                 else if ((fa > 1 && fb === 1 && nb.x > na.x) || (fa === 1 && fb > 1 && nb.x < na.x)) {
                     c = P.wCross * crossingCost(h, fa, fb, na, nb);
                 } else {
-                    c = P.wBio * transitionCost(h, fa, fb, na, nb);
+                    c = P.wBio * transitionCost(h, fa, fb, na, nb, inPosition);
                     // Hand-position comfort: successive fingers should be about as far apart as the
                     // keys (1-4 on a second, or 1-5 on a third, cramps the hand for nothing). Uses the
                     // same comfortable spans as the chord shapes, scaled by hand size.
                     if (fa !== fb) {
-                        var cd = comfortDev(h, fa, fb, Math.abs(d));
+                        // same allowances as transitionCost: black/white keys, pivoting hand
+                        var cd = comfortDev(h, fa, fb, Math.abs(d),
+                                            na.isBlack !== nb.isBlack ? WHITE_KEY_CM / CM_PER_SEMITONE : 0,
+                                            P.pivotCm * h.thumbScale / CM_PER_SEMITONE);
                         var weak = (fa === 4 || fb === 4) && Math.abs(fa - fb) === 1 && Math.abs(d) > 2;
                         c += P.wComfort * cd * (weak ? P.weakStretch : 1);
                     }
-                    // Return to a key of the current hand position with its finger (hand position
-                    // memory): the hand is already shaped over these keys. Only for in-position
-                    // movements: a thumb passage or a leap moves the hand, so it is never cheaper.
-                    if (inPosition) { c *= P.recurMove; }
                 }
             } else if (na.pitch === nb.pitch && na.repKeep && nb.repKeep) {
                 // a repeated-note pedal struck alone and then inside a chord (or the reverse)
                 c = P.wRepeat * repetitionCost(h, fa, fb, na, nb);
             } else {
-                c = P.wBio * transitionCost(h, fa, fb, na, nb);
+                c = P.wBio * transitionCost(h, fa, fb, na, nb, inPosition);
                 // Inside a chord the "time" between members is the artificial stagger of
                 // buildSequence (0.05 beat), which inflates the geometric cost about sevenfold and
                 // would let the spread of one chord outweigh the whole musical context around it.
                 if (na.isChord && nb.isChord && na.chordID === nb.chordID) { c *= P.chordSpreadWeight; }
-                // A chord (or a note after a chord) that comes back with the same fingers: the hand
-                // is already shaped over it (hand position memory; crossings below are not reduced).
-                if (inPosition) { c *= P.recurMove; }
                 // Leaving (or reaching) a chord legato with two long fingers crossing (e.g. 5 on the
                 // top note, then 4 above it) is a real crossing only partly excused by the possibility
                 // of shifting the hand between the two: soft, not forbidden.
@@ -2052,10 +2115,16 @@ MuseScore {
                     c += P.chordCrossing;
                 }
                 // A thumb passage into or out of a chord (E3 with the thumb, then a chord whose
-                // lower note is above it in the left hand) is a thumb passage like any other.
+                // lower note is above it in the left hand) is a thumb passage like any other: it
+                // REPLACES the geometric cost (as between single notes), whose distance from the
+                // comfortable span is meaningless for fingers that cross.
                 if (!sameChord && nb.pitch !== na.pitch && !isLeap(h, na, nb) &&
                     ((fa > 1 && fb === 1 && nb.x > na.x) || (fa === 1 && fb > 1 && nb.x < na.x))) {
-                    c += P.wCross * crossingCost(h, fa, fb, na, nb);
+                    var cc = P.wCross * crossingCost(h, fa, fb, na, nb);
+                    // A chord is struck by the whole hand, which can be lifted and placed on it: going
+                    // INTO a chord never costs more than repositioning the hand (as after a leap).
+                    if (nb.isChord && !na.isChord) { cc = Math.min(cc, P.chordShift * P.wLeap * leapCost(h, fa, fb, na, nb)); }
+                    c = cc;
                 }
             }
             // A movement that follows a recognised pattern (both notes in a pattern of the same kind,
@@ -2108,7 +2177,13 @@ MuseScore {
                     if (maxAge !== undefined && nseq[i].start - b.start > maxAge) { continue; }
                     var started = b.start <= nseq[i].start + 1e-6;
                     if (b.pitch !== nseq[i].pitch && started && b.end - nseq[i].start > 1e-6) {
-                        set[fixedFinger(b)] = true;
+                        var fbz = fixedFinger(b);
+                        set[fbz] = true;
+                        // while a key is held, the other fingers stay on their side of it (no finger
+                        // passes over or under a finger that holds a key)
+                        for (var fz = 1; fz <= 5; fz++) {
+                            if ((nseq[i].x - b.x) * (fz - fbz) < 0) { set[fz] = true; }
+                        }
                     }
                 }
                 forb.push(set);
@@ -2153,7 +2228,7 @@ MuseScore {
             if (path && j !== undefined) { return path[j] === f; }
             return null;
         }
-        function recurCost(recur, lv, f, path) { return recurKept(recur, lv, f, path) === false ? recur.w : 0; }
+        function recurCost(recur, lv, f, path) { return recurKept(recur, lv, f, path) === false ? recur.w[lv] : 0; }
 
         // Exact minimum-cost path by backward DP; ties -> lexicographically smallest fingers.
         function searchDP(h, nseq, depth, options, relaxSpan, recur) {
@@ -2254,7 +2329,10 @@ MuseScore {
                     if (heldBefore[level]) {
                         var clash = false;
                         for (var q = 0; q < heldBefore[level].length; q++) {
-                            if (candidate[heldBefore[level][q]] === finger) { clash = true; break; }
+                            var hj = heldBefore[level][q];
+                            if (candidate[hj] === finger) { clash = true; break; }
+                            // fingers keep their order around a held key (H2)
+                            if ((nseq[level].x - nseq[hj].x) * (finger - candidate[hj]) < 0) { clash = true; break; }
                         }
                         if (clash) { continue; }
                     }
@@ -2346,10 +2424,11 @@ MuseScore {
                 if (!feasible) { continue; }
                 // Hand position memory: links to strokes already fingered are per-note costs (DP
                 // stays exact); links between notes of the window need the exhaustive search.
-                var recur = { known: {}, inWin: {}, w: P.recurKeep }, inWinLinks = false;
+                var recur = { known: {}, inWin: {}, w: {} }, inWinLinks = false;
                 for (lv = off; lv < L; lv++) {
                     var rp = win[lv].recurPrev;
                     if (!rp) { continue; }
+                    recur.w[lv] = (rp.isChord && win[lv].isChord) ? P.recurChordKeep : P.recurKeep;
                     if (rp.finger > 0) { recur.known[lv] = rp.finger; continue; }
                     for (var rl = off; rl < lv; rl++) {
                         if (win[rl] === rp) { recur.inWin[lv] = rl; inWinLinks = true; break; }

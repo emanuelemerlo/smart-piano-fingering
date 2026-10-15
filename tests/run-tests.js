@@ -452,7 +452,7 @@ test("compact writing: repeated key with the same finger gets one number; off wr
 console.log("Core: hand model (profiles, two spans, mobility)");
 const fingersOf = (items, side, size) => lib.run(core, items, side, size).fingers.join("");
 const warningsOf = (items, side, size) => lib.run(core, items, side, size).warnings.length;
-test("legacy presets map to the profiles; 'woman' is the former M, M is still accepted", () => {
+test("legacy presets map to the profiles; M maps to 'woman' and is still accepted", () => {
     const map = { XXS: "child58", XS: "child58", S: "child912", M: "woman", L: "man", XL: "large", XXL: "large" };
     for (let k = 0; k < 6; k++) {
         const items = randomPiece(100 + k, 80), side = k % 2 ? "left" : "right";

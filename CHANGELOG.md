@@ -22,7 +22,27 @@ All notable changes to this project are documented here. The format follows
   - The **Woman** profile gives exactly the results of the former `M`; the old names are still
     accepted by scripts (`XXS`/`XS` -> child 5-8, `S` -> child 9-12, `M` -> woman, `L` -> man,
     `XL`/`XXL` -> large).
-  - Golden files `scale4-XXS/M/XXL` replaced by `scale4-child58/woman/large` (`woman` is unchanged).
+  - Golden files `scale4-XXS/M/XXL` replaced by `scale4-child58/woman/large`.
+- **Biomechanics follow the hand profile.** The comfortable span of every finger pair comes from
+  the profile (widest interval without tension = span - 5 cm for 1-5, the chord limit span - 2.5 cm,
+  same ratio for the other pairs, times the child's mobility), and the movement cost between two
+  fingers is the distance OUTSIDE that comfortable span; the distance from the relaxed spacing of
+  the fingers (the only measure of version 1) now has a small weight (`restWeight` 0.3). Before,
+  1-3 on a sixth cost like a real stretch even for a large hand, which produced fingerings such as
+  `4 1 4` (4 over the thumb) on G2-D3-B3; now `5 3 1`.
+  - Keys struck in succession may open a little wider than a chord (`pivotCm`); white + black keys
+    are not "cramped" (1-3 on C-C#); thumb and index alternating on a wide interval keep a narrower
+    comfortable span (a broken sixth is 1-3, not 1-2).
+  - The hand position memory no longer makes a stretch cheaper: only the movement towards the
+    relaxed spacing is reduced when the hand returns to keys it is shaped over.
+  - Thumb passages into or out of a chord replace the geometric cost (instead of adding to it); a
+    chord after a single note may be reached by repositioning the hand (`chordShift`).
+  - A repeated chord keeps its fingering (`recurChordKeep`); 1 and 5 on the outer notes of a chord
+    from a fifth (was a sixth).
+  - The default profile *Woman* is therefore no longer identical to the former `M`: in *Venezia*
+    16 bars of the left hand and 11 of the right change, among them every `4 1 4` crossing.
+- **Held keys:** while a finger holds a key, no other finger passes over or under it (a held E4 with
+  4 and G4 above it with 3 or 1 was accepted).
 
 ### Fixed
 - **Hand position memory.** A key that comes back after one or a few other notes while the hand
