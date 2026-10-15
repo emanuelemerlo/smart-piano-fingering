@@ -43,8 +43,9 @@ Keep the QML file and the PNG together. If the plugin is not listed, check the p
 4. **Keep existing fingerings**:
    - *on* – existing fingerings are never touched; plain numbers `1`–`5` are used as anchors by the calculation.
    - *off* – plain numbers `1`–`5` are replaced. Notes carrying any other fingering text (for example a substitution such as `1-2`) are left untouched and reported in the final message.
-5. **Selection only** – enabled when a range selection exists. Only the selected staves and time range are written; a few bars around the selection are read to give the algorithm context.
-6. Press **Apply**. Review the result musically; undo with `Ctrl+Z` if needed.
+5. **Repeated notes: write the finger only when it changes** (on by default) – when the same key is struck again with the same finger, the number is written only on the first stroke (and again where the finger changes). Switch it off to number every note.
+6. **Selection only** – enabled when a range selection exists. Only the selected staves and time range are written; a few bars around the selection are read to give the algorithm context.
+7. Press **Apply**. Review the result musically; undo with `Ctrl+Z` if needed.
 
 Do not edit the score while the calculation is running (it usually takes a few seconds). Press **Stop** to abort; nothing is written in that case.
 
