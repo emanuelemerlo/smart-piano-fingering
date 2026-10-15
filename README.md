@@ -2,7 +2,7 @@
 
 MuseScore plugin that calculates and inserts piano fingering numbers (`1`–`5`) for the right and left hands.
 
-> **Status:** version 1.1.0. The fingering algorithm and the score-reading logic are covered by automated tests that run outside MuseScore (see [Testing](#testing)). The plugin as a whole has **not** been validated on every MuseScore release: try it on a copy of your score first.
+> **Status:** version 2.0.0. The fingering algorithm and the score-reading logic are covered by automated tests that run outside MuseScore (see [Testing](#testing)). The plugin as a whole has **not** been validated on every MuseScore release: try it on a copy of your score first.
 
 ## Features
 
@@ -48,8 +48,36 @@ Keep the QML file and the PNG together. If the plugin is not listed, check the p
 
 Do not edit the score while the calculation is running (it usually takes a few seconds). Press **Stop** to abort; nothing is written in that case.
 
+## How the algorithm works (version 2)
+
+Version 2 is a hybrid: it first recognises the music, then applies established piano technique,
+and only then lets the biomechanical model choose among the musically acceptable fingerings.
+
+1. **Musical analysis** (once per staff). Lines of single notes and chords are scanned for
+   major and minor scales (harmonic, melodic, natural) in all keys, chromatic runs, pentatonic
+   runs, five-finger positions, arpeggios (triads, sevenths, inversions), broken chords (Alberti
+   bass...), repeated notes and leaps. Each pattern gets a **confidence**: high confidence makes
+   the canonical fingering a constraint, medium confidence a preference, low confidence is ignored.
+   The key signature, when MuseScore provides it, helps to choose between keys.
+2. **Canonical fingerings**: an internal database of the standard scale fingerings (12 major and
+   12 harmonic minor keys, both hands, both directions; natural and melodic minor derived from
+   them), the standard chromatic fingering, rules for arpeggios and chord shapes.
+3. **Context-dependent rules**: thumb and fifth finger on black keys are penalised in scales and
+   lines but accepted in chords and black-key arpeggios; thumb passages are modelled explicitly;
+   fast repeated notes change finger; leaps reposition the hand.
+4. **Search**: the original DP / branch-and-bound search over a window of notes, now including the
+   previous note so that every transition is evaluated, with chords planned as a unit.
+   Hard constraints (held notes, chord order and span, your existing fingerings) are relaxed only
+   when nothing else works, and any remaining conflict is reported in the final message.
+
+The rules, their musical rationale and every coefficient are documented in the code
+(`createSmartPianoFingeringCore`); coefficients are collected in `DEFAULT_PARAMS`.
+
 ## Behaviour notes
 
+- Slurs, dynamics and accents are not read (the plugin API offers no reliable access to them);
+  staccato is used when MuseScore exposes it. The tempo is not read: "fast" and "slow" are
+  judged in beats.
 - The output is a *suggestion*. It cannot replace a pianist's judgement, and some passages need manual correction.
 - Fingerings are chosen per staff/hand. Notes of all voices on the staff are treated as played by that hand.
 - Grace notes are not fingered. Percussion staves are rejected.
@@ -62,7 +90,10 @@ Do not edit the score while the calculation is running (it usually takes a few s
 |---|---|
 | `smart-piano-fingering.qml` | Plugin UI, fingering algorithm and MuseScore adapter. |
 | `smart-piano-fingering.png` | Plugin thumbnail referenced by `thumbnailName`. |
-| `tests/run-tests.js` | Node tests for the algorithm and the score adapter (mock score). |
+| `tests/run-tests.js` | Node tests: algorithm, musical reference suite, invariants, score adapter (mock score). |
+| `tests/musical-suite.js` | Reference cases (scales, chromatic, arpeggios, chords, repeated notes, black keys, leaps, held notes, combinations). |
+| `tests/compare-legacy.js` | Compares version 1.1.0 (`tests/legacy/`) with the current algorithm. |
+| `tests/REPORT.md`, `tests/COMPARISON.md` | Generated test tables. |
 | `CHANGELOG.md` | Release history. |
 | `LICENSE` | GNU General Public License v3.0. |
 | `THIRD_PARTY_NOTICES.md` | Attribution for the algorithm's origin. |
@@ -74,10 +105,12 @@ Do not edit the score while the calculation is running (it usually takes a few s
 ## Testing
 
 ```bash
-node tests/run-tests.js
+node tests/run-tests.js            # all tests
+node tests/run-tests.js --report   # also writes tests/REPORT.md
+node tests/compare-legacy.js       # writes tests/COMPARISON.md (1.1.0 vs current)
 ```
 
-The tests extract the embedded JavaScript from the QML file and run it against a mock score. They verify the algorithm and the adapter logic (unisons, ties, tuplets, cross-staff, selection window, keep/replace rules). They do **not** exercise MuseScore's QML runtime, so manual verification is still required before a release; see [CONTRIBUTING.md](CONTRIBUTING.md).
+The tests extract the embedded JavaScript from the QML file and run it against a mock score. They verify the algorithm against a reference suite of standard fingerings (classified as canonical, acceptable variant, non-standard or physically impossible by an independent checker), structural invariants on random material, and the adapter logic (unisons, ties, tuplets, cross-staff, selection window, keep/replace rules). They do **not** exercise MuseScore's QML runtime, so manual verification is still required before a release; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

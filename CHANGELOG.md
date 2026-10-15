@@ -4,6 +4,47 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [2.0.1] - 2026-10-15
+
+### Fixed
+- An existing fingering that contradicts a recognised pattern (for example 5 on E in a C major
+  scale) now makes the surrounding notes follow it; before, the notes around it kept the scale
+  fingering as if the existing fingering were not there.
+- Broken-chord accompaniments that change harmony every bar (C-E-G-E | G-B-D-B ...) are fingered
+  5-3-1-3 in every bar: a note below the figure's bass starts a new figure, figures no longer
+  share notes, and the hand may take the new position at the change of harmony.
+- Successive fingers whose spacing does not match the keys (e.g. 1-4 on a second) now have a
+  comfort cost, so such needlessly cramped fingerings are avoided.
+
+### Changed
+- Updated the golden files of the MuseScore runtime tests to the 2.0 algorithm (reviewed).
+
+## [2.0.0] - 2026-10-15
+
+### Changed
+- **New fingering algorithm** (hybrid musical + biomechanical). The music is analysed first;
+  recognised patterns impose or suggest the standard fingering, the biomechanical model chooses
+  among acceptable fingerings. Results differ from 1.1.0 on most passages (see
+  `tests/COMPARISON.md`: 77/302 reference cases passed with 1.1.0, 302/302 with 2.0.0).
+- Chords are planned as a unit inside the search; the post-processing step
+  (`enforceChordConsistency`) is gone, so no transition of the result is left unevaluated.
+- Each search window now includes the previous (already fingered) note.
+- The thumb on a black key is no longer forbidden in thumb passages; it is a context-dependent cost.
+- A chord is now followed by a look-ahead of three notes.
+
+### Added
+- Canonical scale fingerings: 12 major and 12 harmonic minor keys, both hands, both directions;
+  natural and melodic minor (melodic: raised form ascending, natural form descending).
+- Recognition, with confidence, of scales, chromatic and pentatonic runs, five-finger positions,
+  arpeggios (triads, seventh chords, inversions), broken chords, repeated notes and leaps.
+- Explicit models for thumb passages, repeated notes (finger alternation when fast) and leaps.
+- Context-dependent black-key rules; melodic penalty for the 5th finger inside a line.
+- Key signature and staccato are read when the MuseScore API provides them.
+- Configurable, documented coefficients (`DEFAULT_PARAMS`, `options.params`).
+- Conflicts that cannot be solved (existing fingering against a held finger, chord wider than the
+  hand, held notes that must be released) are reported in the final message.
+- Musical reference suite, invariant tests, ES5 syntax guard, comparison with 1.1.0.
+
 ## [1.1.0] - 2026-10-13
 
 ### Fixed

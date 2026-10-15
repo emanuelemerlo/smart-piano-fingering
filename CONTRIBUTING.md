@@ -12,7 +12,10 @@ Thank you for helping improve Smart Piano Fingering.
 ## Development workflow
 
 1. Edit `smart-piano-fingering.qml`.
-2. Run the automated tests: `node tests/run-tests.js`.
+2. Run the automated tests: `node tests/run-tests.js` (add `--report` to regenerate `tests/REPORT.md`).
+   For algorithm changes also run `node tests/compare-legacy.js` and look at every changed case.
+   Add reference cases to `tests/musical-suite.js` with their source (method book, rule, ...);
+   do not write expected fingerings by copying the plugin's output.
 3. Copy the files to your MuseScore plugins folder and test on a **disposable score**.
 
 ## Manual verification before a release

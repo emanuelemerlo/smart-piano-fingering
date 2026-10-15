@@ -2,19 +2,17 @@
 // Tests for the embedded JavaScript of smart-piano-fingering.qml.
 // The core and the adapter are extracted from the QML file and run against a mock score.
 // These tests do NOT exercise MuseScore's QML runtime.
+//
+//   node tests/run-tests.js            run everything
+//   node tests/run-tests.js --report   also write tests/REPORT.md (table of the musical suite)
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const lib = require("./lib.js");
+const suite = require("./musical-suite.js");
+const runner = require("./suite-runner.js");
 
-const qmlPath = path.join(__dirname, "..", "smart-piano-fingering.qml");
-const src = fs.readFileSync(qmlPath, "utf8");
-const start = src.indexOf("    function createSmartPianoFingeringCore()");
-const end = src.lastIndexOf("}");
-if (start < 0) { console.error("Cannot find createSmartPianoFingeringCore in the QML file"); process.exit(1); }
-const mod = {};
-new Function("m", src.slice(start, end) +
-    ";m.Core=createSmartPianoFingeringCore;m.Adapter=createMuseScoreAdapter;")(mod);
-
+const mod = lib.loadQml();
 let passed = 0, failed = 0;
 function test(name, fn) {
     try { fn(); passed++; console.log("  ok   " + name); }
@@ -194,6 +192,225 @@ test("range excludes notes outside it", () => {
         [{ note: a, tick: 0 }, { note: b, tick: 960 }], true, { from: 480, to: 1440 });
     eq(r.written, 1); eq(a.els.length, 0); eq(b.els.length, 1);
 });
+
+
+// ================================================================== algorithm version 2
+console.log("Core: syntax");
+test("core is ES5 (QML JavaScript engine): no let/const/arrow functions/template literals/classes", () => {
+    const code = mod.source.replace(/\/\/[^\n]*/g, "").replace(/"(?:[^"\\]|\\.)*"/g, '""');
+    const bad = [/\blet\s/, /\bconst\s/, /=>/, /`/, /\bclass\s/].filter(r => r.test(code));
+    eq(bad.map(String), []);
+});
+
+console.log("Core: canonical knowledge");
+const K = core.knowledge;
+const D = suite.digits;
+for (const form of ["major", "harmonic"]) {
+    for (const side of ["right", "left"]) {
+        test(form + " tables " + side + " hand: 12 keys, ascending and descending", () => {
+            const ref = form === "major" ? (side === "right" ? suite.REF_MAJOR_RH : suite.REF_MAJOR_LH)
+                                         : (side === "right" ? suite.REF_HARM_RH : suite.REF_HARM_LH);
+            const names = form === "major" ? suite.TONICS : suite.MINOR_NAMES;
+            names.forEach((nm, pc) => {
+                eq(K.scaleTable(pc, form, side, "up"), D(ref[nm]), nm + " up");
+                eq(K.scaleTable(pc, form, side, "down"), D(ref[nm]).reverse(), nm + " down");
+            });
+        });
+    }
+}
+test("melodic minor: thumb kept off the raised 6th (f#, c# RH), natural form descending", () => {
+    eq(K.scaleTable(6, "melodic", "right", "up"), D("23123412"));
+    eq(K.scaleTable(1, "melodic", "right", "up"), D("23123412"));
+    eq(K.scaleTable(6, "natural", "right", "down"), D("32132143"));
+    eq(K.scaleFingering(9, "melodic", "right").source, "derived");
+});
+test("no canonical or derived scale puts the thumb on a black key", () => {
+    for (const form of ["major", "harmonic", "melodic", "natural"]) {
+        for (let t = 0; t < 12; t++) {
+            for (const side of ["right", "left"]) {
+                const cyc = K.scaleFingering(t, form, side).cyc;
+                [1, 3, 6, 8, 10].forEach(pc => ok(cyc[pc] !== 1, form + " " + t + " " + side + " thumb on pc " + pc));
+            }
+        }
+    }
+});
+test("chromatic and arpeggio rules", () => {
+    eq([0, 1, 2, 3, 4, 5].map(pc => K.chromaticFinger(pc, "right")), [2, 3, 1, 3, 1, 2]);
+    eq([0, 1, 2, 3, 4, 5].map(pc => K.chromaticFinger(pc, "left")), [1, 3, 1, 3, 2, 1]);
+    const c = K.arpeggioFingering([0, 4, 7], 0, "right").cyc;
+    eq([c[0], c[4], c[7]], [1, 2, 3]);
+    const l = K.arpeggioFingering([0, 4, 7], 0, "left").cyc;
+    eq([l[0], l[4], l[7]], [1, 4, 2]);
+    eq(K.chordShape([60, 64, 67], "right").fingers, [1, 3, 5]);
+    eq(K.chordShape([64, 67, 72], "right").fingers, [1, 2, 5]);
+    eq(K.chordShape([55, 60, 64], "left").fingers, [5, 2, 1]);
+});
+test("rule generator reproduces most canonical tables (informative; the tables are what is used)", () => {
+    let same = 0, total = 0;
+    for (const form of ["major", "harmonic"]) {
+        for (let t = 0; t < 12; t++) {
+            for (const side of ["right", "left"]) {
+                const g = K.generateCyclic(t, K.forms[form], side, [3, 4]);
+                const c = K.scaleFingering(t, form, side).cyc;
+                total++; if (g.join() === c.join()) { same++; }
+            }
+        }
+    }
+    console.log("       generator reproduces " + same + "/" + total + " canonical tables");
+    ok(same >= 30, "only " + same);
+});
+
+console.log("Core: musical reference suite");
+const results = runner.runSuite(core);
+const groups = {};
+results.forEach(r => { (groups[r.case.group] = groups[r.case.group] || []).push(r); });
+Object.keys(groups).forEach(g => {
+    const rs = groups[g];
+    const bad = rs.filter(r => !r.pass);
+    test(g + " (" + rs.length + " cases)", () => {
+        if (bad.length) {
+            throw new Error(bad.length + " failed:\n       " + bad.map(r => r.case.name + ": got " + r.fingers.join("") +
+                (r.case.expected ? " expected " + r.case.expected.join("") : "") + " [" + r.cls + "] " + r.reason).join("\n       "));
+        }
+    });
+});
+
+console.log("Core: invariants");
+// Random but musically shaped material: lines, chords, two voices, held notes, all hand sizes.
+function rng(seed) { let x = seed; return () => { x = (x * 1103515245 + 12345) % 2147483648; return x / 2147483648; }; }
+function randomPiece(seed, n) {
+    const r = rng(seed), items = [];
+    let t = 0, p = 64, id = 0;
+    while (items.length < n) {
+        const kind = r();
+        const dur = [0.25, 0.5, 0.5, 1, 0.125][Math.floor(r() * 5)];
+        if (kind < 0.15) {
+            const root = 55 + Math.floor(r() * 12), shape = [[0, 4, 7], [0, 3, 8], [0, 5, 9], [0, 4, 7, 12], [0, 3, 7]][Math.floor(r() * 5)];
+            shape.forEach(iv => items.push({ id: id++, pitch: root + iv, start: t, end: t + dur, anchor: 0, voice: 0 }));
+        } else if (kind < 0.22) {
+            items.push({ id: id++, pitch: p - 7, start: t, end: t + 2, anchor: 0, voice: 1 });
+            items.push({ id: id++, pitch: p, start: t, end: t + dur, anchor: 0, voice: 0 });
+        } else {
+            p += [-2, -1, 1, 2, 2, -2, 3, -3, 0, 5, -5, 12, -12][Math.floor(r() * 13)];
+            p = Math.max(48, Math.min(84, p));
+            items.push({ id: id++, pitch: p, start: t, end: t + dur, anchor: r() < 0.03 ? 1 + Math.floor(r() * 5) : 0, voice: 0 });
+        }
+        t += dur;
+    }
+    return items;
+}
+test("hard constraints hold on 30 random pieces (all sizes, both hands) unless a warning says otherwise", () => {
+    const sizes = ["XXS", "S", "M", "L", "XXL"];
+    for (let k = 0; k < 30; k++) {
+        const side = k % 2 ? "left" : "right", size = sizes[k % 5];
+        const items = randomPiece(k + 1, 150);
+        const seq = core.buildSequence(JSON.parse(JSON.stringify(items)), 0.05);
+        core.generate(seq, side, size);
+        ok(seq.every(n => n.finger >= 1 && n.finger <= 5), "finger range");
+        const h = core.internals.makeHand(side, size);
+        if (side === "left") { seq.forEach(n => { n.x = -n.x; }); }
+        const warned = {}; seq.warnings.forEach(w => { warned[w.index] = true; });
+        for (let i = 1; i < seq.length; i++) {
+            if (warned[i] || seq[i].anchor || seq[i - 1].anchor) { continue; }
+            const bad = core.internals.skip(h, seq[i - 1].finger, seq[i].finger, seq[i - 1], seq[i], false);
+            ok(!bad, "piece " + k + " note " + i + ": transition " + seq[i - 1].finger + "->" + seq[i].finger + " violates a hard rule");
+        }
+        if (side === "left") { seq.forEach(n => { n.x = -n.x; }); }
+        // chords: distinct, ordered fingers (also with warnings)
+        const chords = {};
+        seq.filter(n => n.isChord).forEach(n => { (chords[n.chordID] = chords[n.chordID] || []).push(n); });
+        Object.keys(chords).forEach(c => {
+            const f = chords[c].map(n => n.finger);
+            for (let i = 1; i < f.length; i++) {
+                ok(side === "right" ? f[i] > f[i - 1] : f[i] < f[i - 1], "piece " + k + " chord " + c + " fingers " + f);
+            }
+        });
+    }
+});
+test("generator and generate() agree on random material; anchors are never changed", () => {
+    for (let k = 0; k < 6; k++) {
+        const items = randomPiece(100 + k, 120);
+        const a = core.buildSequence(JSON.parse(JSON.stringify(items)), 0.05);
+        const b = core.buildSequence(JSON.parse(JSON.stringify(items)), 0.05);
+        core.generate(a, "right", "M");
+        const g = core.createGenerator(b, "right", "M"); while (g.step()) { /* run */ }
+        eq(a.map(n => n.finger), b.map(n => n.finger));
+        a.forEach(n => { if (n.anchor) { eq(n.finger, n.anchor, "anchor"); } });
+    }
+});
+test("performance: 4000 notes (chords, two voices) in reasonable time", () => {
+    const items = randomPiece(7, 4000);
+    const t0 = Date.now();
+    const seq = core.buildSequence(items, 0.05);
+    core.generate(seq, "right", "M");
+    const ms = Date.now() - t0;
+    console.log("       " + seq.length + " notes in " + ms + " ms (Node; the QML engine is slower)");
+    ok(ms < 20000, ms + " ms");
+});
+test("staccato lets the same finger play two keys; legato does not", () => {
+    const h = core.internals.makeHand("right", "M");
+    const na = { pitch: 60, x: core.keyPosition(60), isChord: false, duration: 0.5, staccato: false };
+    const nb = { pitch: 64, x: core.keyPosition(64), isChord: false, duration: 0.5 };
+    ok(core.internals.skip(h, 1, 1, na, nb, false), "legato 1-1 allowed");
+    na.staccato = true;
+    ok(!core.internals.skip(h, 1, 1, na, nb, false), "staccato 1-1 forbidden");
+});
+test("custom parameters are honoured (configurable coefficients)", () => {
+    const items = lib.line([60, 60, 60, 60, 60, 60], 0.25);
+    const normal = lib.run(core, items, "right", "M").fingers;
+    const noAlt = lib.run(core, items, "right", "M", { params: { repSame: 0, repChange: 50 } }).fingers;
+    ok(new Set(normal).size > 1, "default alternates");
+    eq(new Set(noAlt).size, 1, "repSame=0 keeps one finger");
+});
+
+test("an existing fingering that contradicts a recognised pattern makes the neighbours follow it", () => {
+    const up = [60, 62, 64, 65, 67, 69, 71, 72];
+    const items = lib.line(up, 0.25);
+    const plain = lib.run(core, items, "right", "M").fingers;
+    items[2].anchor = 5;
+    const anchored = lib.run(core, items, "right", "M");
+    eq(anchored.fingers[2], 5, "anchor kept");
+    ok(anchored.fingers[0] !== plain[0] || anchored.fingers[1] !== plain[1], "notes before the anchor follow it: " + anchored.fingers.join(""));
+    ok(anchored.analysis.patterns.some(p => /overridden/.test(p.strength)), "pattern marked as overridden");
+    items[2].anchor = 3;   // agrees with the scale: nothing changes
+    eq(lib.run(core, items, "right", "M").fingers, plain);
+});
+
+console.log("Adapter: v2 fields");
+test("key signature and staccato are read when the API provides them", () => {
+    const n = note(60);
+    const c = chord([n], 480);
+    c.articulations = [{ symbol: "articStaccatoAbove" }];
+    const score = mkScore([[[{ tick: 0, el: c }]]]);
+    const orig = score.newCursor;
+    score.newCursor = function () { const cur = orig.call(this); cur.keySignature = -2; return cur; };
+    const r = mod.Adapter(api(score)).readStaves([0], false, null)[0];
+    eq(r.items[0].keySig, -2);
+    eq(r.items[0].staccato, true);
+});
+test("missing key signature / articulations are tolerated", () => {
+    const r = mod.Adapter(api(mkScore([[[{ tick: 0, el: chord([note(60)], 480) }]]]))).readStaves([0], false, null)[0];
+    eq(r.items[0].keySig, null);
+    eq(r.items[0].staccato, false);
+});
+
+if (process.argv.includes("--report")) {
+    const sum = runner.summary(results);
+    let md = "# Musical reference suite - results\n\nGenerated by `node tests/run-tests.js --report`.\n\n";
+    md += "Classes: CANONICAL = the standard fingering; ACCEPTABLE VARIANT = a fingering teachers also use; " +
+          "VALID (no reference) = physically valid, the case only states a check; " +
+          "NON-STANDARD = physically valid but not the reference (a failure only where the case requires more); " +
+          "PHYSICALLY IMPOSSIBLE = violates the independent physical checker.\n\n";
+    md += "| group | cases | pass | canonical | acceptable | valid, no reference | non-standard | impossible |\n|---|---|---|---|---|---|---|---|\n";
+    Object.keys(sum).forEach(g => {
+        const x = sum[g];
+        md += "| " + g + " | " + x.total + " | " + x.pass + " | " + x.CANONICAL + " | " + x["ACCEPTABLE VARIANT"] + " | " +
+              x["VALID (no reference)"] + " | " + x["NON-STANDARD"] + " | " + x["PHYSICALLY IMPOSSIBLE"] + " |\n";
+    });
+    md += "\n" + runner.markdownTable(results) + "\n";
+    fs.writeFileSync(path.join(__dirname, "REPORT.md"), md);
+    console.log("\nwrote tests/REPORT.md");
+}
 
 console.log("\n" + passed + " passed, " + failed + " failed");
 process.exit(failed ? 1 : 0);
