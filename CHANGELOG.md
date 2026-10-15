@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Option **Repeated notes: write the finger only when it changes** (on by default): a key struck
+  again with the same finger is numbered only on its first stroke.
+
+### Fixed
+- Repeated-note pedals (a key repeated in one voice while another voice holds or moves, e.g. the
+  G pedal in Tchaikovsky's *Morning Prayer* op. 39 no. 1, bars 16-21) are played with one finger
+  throughout. Before, the pedal was treated as a fast repetition and its strokes were split
+  between single notes and chords, so the finger changed irregularly from bar to bar
+  (5-4-3-4-4-5, 5-5-4-3-4-5, 5-5-5-5-5-5, 5-4-2-4-4-4). Fast repetitions in a single line still
+  change fingers.
+
 ### Changed
 - Documentation aligned with 2.0.1: version in the README status, the README file list and testing
   section now include the MuseScore runtime tests and the QML checks, and the release notes no
