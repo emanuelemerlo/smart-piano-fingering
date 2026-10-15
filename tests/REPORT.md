@@ -15,7 +15,7 @@ Classes: CANONICAL = the standard fingering; ACCEPTABLE VARIANT = a fingering te
 | G. Black keys | 8 | 8 | 3 | 0 | 5 | 0 | 0 |
 | H. Leaps | 4 | 4 | 0 | 0 | 4 | 0 | 0 |
 | I. Held notes | 4 | 4 | 1 | 0 | 3 | 0 | 0 |
-| J. Combinations | 7 | 7 | 7 | 0 | 0 | 0 | 0 |
+| J. Combinations | 8 | 8 | 8 | 0 | 0 | 0 | 0 |
 | K. Recognition limits | 5 | 5 | 3 | 0 | 2 | 0 | 0 |
 | L. Anchors and hand size | 7 | 7 | 4 | 0 | 1 | 0 | 2 |
 
@@ -313,16 +313,17 @@ Classes: CANONICAL = the standard fingering; ACCEPTABLE VARIANT = a fingering te
 | 290 | J. Combinations | chord -> chord: I-IV-V-I (LH) | 531521531531 | 531521531531 | CANONICAL | pass |  |
 | 291 | J. Combinations | arpeggio -> scale (RH) | 12312354321321 | 12312354321321 | CANONICAL | pass |  |
 | 292 | J. Combinations | scale -> arpeggio (RH) | 12312341235 | 12312341235 | CANONICAL | pass |  |
-| 293 | J. Combinations | Alberti bass (LH) | 5131513151315131 | 5131513151315131 | CANONICAL | pass |  |
-| 294 | K. Recognition limits | neighbour-note figure is a five-finger position, not a scale | 12132435 | 12132435 | CANONICAL | pass |  |
-| 295 | K. Recognition limits | line in thirds: no scale rules applied | – | 13243541 | VALID (no reference) | pass |  |
-| 296 | K. Recognition limits | modal run G to G on white keys (ambiguous key) stays soft | 23412312 | 23412312 | CANONICAL | pass |  |
-| 297 | K. Recognition limits | scale embedded in a phrase with dotted rhythm | – | 351231234131 | VALID (no reference) | pass |  |
-| 298 | K. Recognition limits | scale from the 5th degree with key signature (G major) | 23412312 | 23412312 | CANONICAL | pass |  |
-| 299 | L. Anchors and hand size | user anchor 4 on F in C major is kept | – | 12341345 | VALID (no reference) | pass |  |
-| 300 | L. Anchors and hand size | anchor clashing with a held finger is reported | – | 11 | PHYSICALLY IMPOSSIBLE | pass |  |
-| 301 | L. Anchors and hand size | C major scale RH 2 oct with hand XXS | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
-| 302 | L. Anchors and hand size | C major scale RH 2 oct with hand S | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
-| 303 | L. Anchors and hand size | C major scale RH 2 oct with hand XXL | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
-| 304 | L. Anchors and hand size | C major arpeggio RH with hand XXS stays playable | 1231235 | 1231235 | CANONICAL | pass |  |
-| 305 | L. Anchors and hand size | wide chord C3-G3-E4 RH (M): impossible span is reported | – | 125 | PHYSICALLY IMPOSSIBLE | pass |  |
+| 293 | J. Combinations | broken triads changing every bar (LH) | 5313531353135313 | 5313531353135313 | CANONICAL | pass |  |
+| 294 | J. Combinations | Alberti bass (LH) | 5131513151315131 | 5131513151315131 | CANONICAL | pass |  |
+| 295 | K. Recognition limits | neighbour-note figure is a five-finger position, not a scale | 12132435 | 12132435 | CANONICAL | pass |  |
+| 296 | K. Recognition limits | line in thirds: no scale rules applied | – | 13243541 | VALID (no reference) | pass |  |
+| 297 | K. Recognition limits | modal run G to G on white keys (ambiguous key) stays soft | 23412312 | 23412312 | CANONICAL | pass |  |
+| 298 | K. Recognition limits | scale embedded in a phrase with dotted rhythm | – | 351231234131 | VALID (no reference) | pass |  |
+| 299 | K. Recognition limits | scale from the 5th degree with key signature (G major) | 23412312 | 23412312 | CANONICAL | pass |  |
+| 300 | L. Anchors and hand size | user anchor 4 on F in C major is kept | – | 12341234 | VALID (no reference) | pass |  |
+| 301 | L. Anchors and hand size | anchor clashing with a held finger is reported | – | 11 | PHYSICALLY IMPOSSIBLE | pass |  |
+| 302 | L. Anchors and hand size | C major scale RH 2 oct with hand XXS | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
+| 303 | L. Anchors and hand size | C major scale RH 2 oct with hand S | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
+| 304 | L. Anchors and hand size | C major scale RH 2 oct with hand XXL | 123123412312345 | 123123412312345 | CANONICAL | pass |  |
+| 305 | L. Anchors and hand size | C major arpeggio RH with hand XXS stays playable | 1231235 | 1231235 | CANONICAL | pass |  |
+| 306 | L. Anchors and hand size | wide chord C3-G3-E4 RH (M): impossible span is reported | – | 125 | PHYSICALLY IMPOSSIBLE | pass |  |

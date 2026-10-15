@@ -363,6 +363,19 @@ test("custom parameters are honoured (configurable coefficients)", () => {
     eq(new Set(noAlt).size, 1, "repSame=0 keeps one finger");
 });
 
+test("an existing fingering that contradicts a recognised pattern makes the neighbours follow it", () => {
+    const up = [60, 62, 64, 65, 67, 69, 71, 72];
+    const items = lib.line(up, 0.25);
+    const plain = lib.run(core, items, "right", "M").fingers;
+    items[2].anchor = 5;
+    const anchored = lib.run(core, items, "right", "M");
+    eq(anchored.fingers[2], 5, "anchor kept");
+    ok(anchored.fingers[0] !== plain[0] || anchored.fingers[1] !== plain[1], "notes before the anchor follow it: " + anchored.fingers.join(""));
+    ok(anchored.analysis.patterns.some(p => /overridden/.test(p.strength)), "pattern marked as overridden");
+    items[2].anchor = 3;   // agrees with the scale: nothing changes
+    eq(lib.run(core, items, "right", "M").fingers, plain);
+});
+
 console.log("Adapter: v2 fields");
 test("key signature and staccato are read when the API provides them", () => {
     const n = note(60);

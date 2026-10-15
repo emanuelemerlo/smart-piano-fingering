@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [2.0.1] - 2026-10-15
+
+### Fixed
+- An existing fingering that contradicts a recognised pattern (for example 5 on E in a C major
+  scale) now makes the surrounding notes follow it; before, the notes around it kept the scale
+  fingering as if the existing fingering were not there.
+- Broken-chord accompaniments that change harmony every bar (C-E-G-E | G-B-D-B ...) are fingered
+  5-3-1-3 in every bar: a note below the figure's bass starts a new figure, figures no longer
+  share notes, and the hand may take the new position at the change of harmony.
+- Successive fingers whose spacing does not match the keys (e.g. 1-4 on a second) now have a
+  comfort cost, so such needlessly cramped fingerings are avoided.
+
+### Changed
+- Updated the golden files of the MuseScore runtime tests to the 2.0 algorithm (reviewed).
+
 ## [2.0.0] - 2026-10-15
 
 ### Changed

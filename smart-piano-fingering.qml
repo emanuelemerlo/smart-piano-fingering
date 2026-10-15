@@ -23,7 +23,7 @@ import QtQuick.Layouts 1.3
 import MuseScore 3.0
 
 MuseScore {
-    version: "2.0.0"
+    version: "2.0.1"
     description: qsTr("Inserts piano fingering (1-5) for the right and left hand into the open score.")
     menuPath: "Plugins.SmartPianoFingering"   // MuseScore 3 only; ignored by MuseScore 4
     title: "Smart Piano Fingering"
@@ -491,6 +491,9 @@ MuseScore {
 
             // Movement cost multiplier for transitions that follow a recognised pattern.
             trainedFactor: 0.4,
+            // Weight of the hand-position comfort cost between successive single notes (per semitone
+            // outside the comfortable span of the two fingers, see COMFORT).
+            wComfort: 1.0,
             // Legato crossing of two long fingers between a chord and the next note.
             chordCrossing: 6.0,
             // Weight of the geometric spread cost between members of one chord (see stepCost).
@@ -1070,11 +1073,13 @@ MuseScore {
                     if (clash) { g.contested = true; }
                     if (g.conf >= conf) { return; }
                 }
-                guides[idx] = { finger: finger, conf: conf, kind: kind, alts: o.alts || [],
+                guides[idx] = { finger: finger, conf: conf, kind: kind, alts: o.alts || [], figure: o.figure,
                                 lockable: !!o.lockable, allBlack: !!o.allBlack,
                                 contested: clash || !!(g && g.contested) };
             }
+            var patternNotes = [];   // [{ idxs, fingers, kind }] parallel to patterns (internal)
             function addPattern(kind, label, conf, idxs, fingers, extra) {
+                patternNotes.push({ idxs: idxs.slice(), fingers: fingers.slice(), kind: kind });
                 var p = { kind: kind, label: label, conf: Math.round(conf * 100) / 100,
                           from: idxs[0], to: idxs[idxs.length - 1], fingers: fingers.slice(),
                           strength: conf >= P.highConfidence ? "strong" : (conf >= P.minConfidence ? "preference" : "ignored") };
@@ -1466,6 +1471,7 @@ MuseScore {
             }
 
             // ---- broken chords inside one hand position (Alberti bass, waltz figures...)
+            var figureCount = 0;
             function analyzeBroken(L) {
                 var p = pitchesOf(L), m = L.length, a = 0;
                 var maxSpan = 12 * h.sizeScale;
@@ -1480,6 +1486,10 @@ MuseScore {
                         if (bitCount(mask) > 3 && b + 1 - a >= 4) { break; }
                         // A step (1-2 semitones) belongs to a scale or melody, not to a chord figure.
                         if (Math.abs(p[b + 1] - p[b]) <= 2 && p[b + 1] !== p[b]) { break; }
+                        // Accompaniment figures are built on their bass: once the figure is
+                        // established, a note below its lowest note is the bass of the next harmony
+                        // (C-E-G-E | G-B-D-B: the G2 starts a new figure even though G is in C major).
+                        if (b + 1 - a >= 3 && p[b + 1] < lo) { break; }
                         var fits = false;
                         for (var c = 0; c < CHORDS.length && !fits; c++) { fits = (CHORDS[c].mask & mask) === mask; }
                         if (!fits) { break; }
@@ -1496,15 +1506,38 @@ MuseScore {
                             var shape = chordShape(dp, side, h);
                             if (shape) {
                                 var conf = Math.min(shape.conf, 0.65), f = [];
+                                figureCount++;
                                 for (q = 0; q < len; q++) {
                                     f.push(shape.fingers[dp.indexOf(sp[q])]);
-                                    claim(L[a + q], f[q], conf, "broken");
+                                    claim(L[a + q], f[q], conf, "broken", { figure: figureCount });
                                 }
                                 addPattern("broken", "broken chord (" + shape.label + ")", conf, L.slice(a, b + 1), f);
                             }
                         }
                     }
-                    a = b > a ? b : a + 1;
+                    // figures do not share notes: the next one starts after this one
+                    a = len >= 3 ? b + 1 : a + 1;
+                }
+            }
+
+            // ---- user fingerings override patterns
+            // A user fingering (anchor) that contradicts the fingering a pattern proposes for that
+            // note means the user plays this passage differently (e.g. 5 on E in C D E F G): the
+            // pattern's proposal is withdrawn for ALL its notes, so the notes around the anchor are
+            // fingered from the anchor and the context instead of from a rule the user rejected.
+            for (var pi = 0; pi < patternNotes.length; pi++) {
+                var pn = patternNotes[pi];
+                if (!pn.fingers.length) { continue; }
+                var overridden = false;
+                for (k = 0; k < pn.idxs.length; k++) {
+                    var an = seq[pn.idxs[k]].anchor;
+                    if (an && an !== pn.fingers[k]) { overridden = true; }
+                }
+                if (!overridden) { continue; }
+                patterns[pi].strength = "overridden by an existing fingering";
+                for (k = 0; k < pn.idxs.length; k++) {
+                    var gq = guides[pn.idxs[k]];
+                    if (gq && gq.kind === pn.kind && gq.finger === pn.fingers[k]) { guides[pn.idxs[k]] = null; }
                 }
             }
 
@@ -1545,6 +1578,14 @@ MuseScore {
             return Math.abs(nb.pitch - na.pitch) > h.params.leapSemis * h.sizeScale;
         }
 
+        // Change of accompaniment figure (e.g. from a C-major to a G-major Alberti group): the hand
+        // takes the new chord position, as after a leap (cost and crossing rule; see skip()).
+        function isFigureChange(na, nb) {
+            var ga = na.guide, gb = nb.guide;
+            return !!(ga && gb && ga.kind === "broken" && gb.kind === "broken" && ga.figure !== gb.figure);
+        }
+        function isReposition(h, na, nb) { return isLeap(h, na, nb) || isFigureChange(na, nb); }
+
         // HARD constraints between two consecutive notes of the search (see H1, H3, H4 above).
         // Version 1 also forbade the thumb passing onto a black key; that is now a context-dependent
         // cost (crossingCost + black-key penalties) because it is correct in chords, black-key
@@ -1555,7 +1596,9 @@ MuseScore {
             if (!na.isChord && !nb.isChord) {
                 var leap = isLeap(h, na, nb);
                 if (fa === fb && xba && !(na.duration >= 4 || leap || na.staccato)) { return true; }
-                if (fa > 1 && fb > 1 && (fb - fa) * xba < 0 && !leap) { return true; }
+                // At a change of accompaniment figure the hand takes a new position, so a crossing of
+                // long fingers is allowed there; the same finger twice in a row is still not.
+                if (fa > 1 && fb > 1 && (fb - fa) * xba < 0 && !(leap || isFigureChange(na, nb))) { return true; }
             } else if (na.isChord !== nb.isChord || na.chordID !== nb.chordID) {
                 // Chord <-> note or chord <-> chord: H3 only (the hand may shift between the two, so
                 // crossings are allowed), and only when the two keys are played legato.
@@ -1639,10 +1682,16 @@ MuseScore {
             if (!na.isChord && !nb.isChord) {
                 var d = nb.pitch - na.pitch;
                 if (d === 0) { c = P.wRepeat * repetitionCost(h, fa, fb, na, nb); }
-                else if (isLeap(h, na, nb)) { c = P.wLeap * leapCost(h, fa, fb, na, nb); }
+                else if (isReposition(h, na, nb)) { c = P.wLeap * leapCost(h, fa, fb, na, nb); }
                 else if ((fa > 1 && fb === 1 && nb.x > na.x) || (fa === 1 && fb > 1 && nb.x < na.x)) {
                     c = P.wCross * crossingCost(h, fa, fb, na, nb);
-                } else { c = P.wBio * transitionCost(h, fa, fb, na, nb); }
+                } else {
+                    c = P.wBio * transitionCost(h, fa, fb, na, nb);
+                    // Hand-position comfort: successive fingers should be about as far apart as the
+                    // keys (1-4 on a second, or 1-5 on a third, cramps the hand for nothing). Uses the
+                    // same comfortable spans as the chord shapes, scaled by hand size.
+                    if (fa !== fb) { c += P.wComfort * comfortDev(h, fa, fb, Math.abs(d)); }
+                }
             } else {
                 c = P.wBio * transitionCost(h, fa, fb, na, nb);
                 // Inside a chord the "time" between members is the artificial stagger of

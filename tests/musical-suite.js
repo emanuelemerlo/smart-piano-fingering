@@ -326,6 +326,9 @@ function comboCases() {
     cases.push({ group: "J. Combinations", name: "scale -> arpeggio (RH)",
         items: line(sc(60).slice(0, 7).concat([72, 76, 79, 84]), 0.25), side: "right", min: "CANONICAL",
         expected: digits("12312341235"), ref: "scale then arpeggio (the scale's last C keeps the thumb)" });
+    cases.push({ group: "J. Combinations", name: "broken triads changing every bar (LH)",
+        items: line([48, 52, 55, 52, 43, 47, 50, 47, 48, 52, 55, 52, 41, 45, 48, 45], 1), side: "left", min: "CANONICAL",
+        expected: digits("5313531353135313"), ref: "root-position broken chord, hand repositioned at each harmony" });
     cases.push({ group: "J. Combinations", name: "Alberti bass (LH)",
         items: line([48, 55, 52, 55, 48, 55, 52, 55, 47, 55, 50, 55, 48, 55, 52, 55], 0.25), side: "left", min: "ACCEPTABLE VARIANT",
         expected: digits("5131513151315131"), variants: [digits("5131513151415131"), digits("5131513141314131")], ref: "standard Alberti fingering" });
