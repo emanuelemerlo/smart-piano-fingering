@@ -4,14 +4,31 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
-
-### Added
-- Cross-platform CI (`.github/workflows/multiplatform.yml`): algorithm tests, static QML checks and a runtime test that runs the real plugin inside MuseScore 4 on Linux, Windows and macOS.
-- `tests/musescore-runtime.js` with 19 scenarios (hands, keep/replace, chords, ties, tuplets, unisons, selection, cross-staff, percussion, rollback, hand sizes, a 1536-note score), golden files for the fingering, `tests/qml-compat-check.js` and a sample MusicXML score.
+## [2.0.0] - 2026-10-15
 
 ### Changed
-- CI actions updated to Node 24-based versions; Node 22 for the test scripts.
+- **New fingering algorithm** (hybrid musical + biomechanical). The music is analysed first;
+  recognised patterns impose or suggest the standard fingering, the biomechanical model chooses
+  among acceptable fingerings. Results differ from 1.1.0 on most passages (see
+  `tests/COMPARISON.md`: 77/302 reference cases passed with 1.1.0, 302/302 with 2.0.0).
+- Chords are planned as a unit inside the search; the post-processing step
+  (`enforceChordConsistency`) is gone, so no transition of the result is left unevaluated.
+- Each search window now includes the previous (already fingered) note.
+- The thumb on a black key is no longer forbidden in thumb passages; it is a context-dependent cost.
+- A chord is now followed by a look-ahead of three notes.
+
+### Added
+- Canonical scale fingerings: 12 major and 12 harmonic minor keys, both hands, both directions;
+  natural and melodic minor (melodic: raised form ascending, natural form descending).
+- Recognition, with confidence, of scales, chromatic and pentatonic runs, five-finger positions,
+  arpeggios (triads, seventh chords, inversions), broken chords, repeated notes and leaps.
+- Explicit models for thumb passages, repeated notes (finger alternation when fast) and leaps.
+- Context-dependent black-key rules; melodic penalty for the 5th finger inside a line.
+- Key signature and staccato are read when the MuseScore API provides them.
+- Configurable, documented coefficients (`DEFAULT_PARAMS`, `options.params`).
+- Conflicts that cannot be solved (existing fingering against a held finger, chord wider than the
+  hand, held notes that must be released) are reported in the final message.
+- Musical reference suite, invariant tests, ES5 syntax guard, comparison with 1.1.0.
 
 ## [1.1.0] - 2026-10-13
 

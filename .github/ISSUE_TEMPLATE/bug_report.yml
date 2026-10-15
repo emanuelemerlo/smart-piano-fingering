@@ -18,13 +18,6 @@ body:
     validations:
       required: true
   - type: input
-    id: plugin
-    attributes:
-      label: Plugin version
-      placeholder: e.g. 1.1.0
-    validations:
-      required: true
-  - type: input
     id: os
     attributes:
       label: Operating system
@@ -35,20 +28,9 @@ body:
     id: reproduce
     attributes:
       label: Steps to reproduce
-      placeholder: 1. Open a test score. 2. Launch the plugin. 3. Click Apply.
+      placeholder: 1. Open a test score...\n2. Launch the plugin...\n3. Click Apply...
     validations:
       required: true
-  - type: textarea
-    id: log
-    attributes:
-      label: MuseScore log / error message
-      description: |
-        If the plugin does not appear, does not open or shows an error, attach the latest MuseScore log.
-        macOS: ~/Library/Application Support/MuseScore/MuseScore4/logs
-        Windows: %LOCALAPPDATA%\MuseScore\MuseScore4\logs
-        Linux: ~/.local/share/MuseScore/MuseScore4/logs
-    validations:
-      required: false
   - type: textarea
     id: score
     attributes:
