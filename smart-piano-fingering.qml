@@ -502,20 +502,43 @@ MuseScore {
             // repKeep is the cost of leaving the finger of the previous stroke of the pedal.
             repKeep: 8.0,
 
+            // HAND POSITION MEMORY. A key that comes back after one or a few other notes, while the
+            // hand has stayed in one position (all the notes in between fit within recurSpan), is
+            // played again with the same finger: the hand does not move, so neither does the finger
+            // (F-C-A-C-A-C in the left hand is 5-3-1-3-1-3, not 5-3-1-5-1-4). recurKeep is the cost
+            // of a different finger; looked back at most recurNotes notes and recurBeats beats.
+            // When the finger IS kept, the hand is already shaped over those keys: the movement cost
+            // of the transition (not the per-note costs) is multiplied by recurMove.
+            recurKeep: 4.0, recurNotes: 4, recurSpan: 12, recurBeats: 4.0, recurMove: 0.1,
+
             // Leaps: beyond leapSemis (M hand) the hand must be repositioned; distance between fingers
             // no longer matters and the landing finger is chosen by what follows.
             leapSemis: 12, leapBase: 2.0, leapSpeed: 0.3, leapSameFinger: 0.2,
 
             // 5th finger on a note inside a line (not a local extreme of the melody).
             fifthInterior: 2.0,
+            // THUMB ON THE OUTER EXTREME of a figure: the LH thumb on a low turning point (the RH thumb
+            // on a high one) whose neighbours are at least thumbTurnSemis away on the fingers' side.
+            // The thumb is the hand's inner finger, so both neighbours can then only be reached by a
+            // thumb passage and its immediate undoing (F2-C3 with C3 4 / F2 1 / C3 4 in the left
+            // hand): the outer finger of the hand belongs there (also after a leap: a bass reached by a
+            // leap is still the bottom of the figure).
+            // Fingers 2-4 there get a small cost growing towards the thumb (outerTurn per finger), so
+            // that when nothing else decides (a final bass reached by a leap) the 5th is chosen.
+            thumbTurn: 15.0, thumbTurnSemis: 5, outerTurn: 0.3,
 
             // Movement cost multiplier for transitions that follow a recognised pattern.
             trainedFactor: 0.4,
             // Weight of the hand-position comfort cost between successive single notes (per semitone
             // outside the comfortable span of the two fingers, see COMFORT).
             wComfort: 1.0,
+            // Stretches between the 4th finger and its neighbours (3-4, 4-5) are the least natural of
+            // the hand (the 4th finger is the least independent): their comfort cost beyond the
+            // comfortable span is multiplied by weakStretch (5-4 on a fifth is worse than 3-1 on a
+            // sixth).
+            weakStretch: 2.0,
             // Legato crossing of two long fingers between a chord and the next note.
-            chordCrossing: 6.0,
+            chordCrossing: 10.0,
             // Weight of the geometric spread cost between members of one chord (see stepCost).
             chordSpreadWeight: 0.4,
 
@@ -1142,6 +1165,7 @@ MuseScore {
                 seq[i].repPrev = -1;
                 seq[i].repNext = -1;
                 seq[i].repKeep = false;
+                seq[i].recurPrev = null;
             }
             analyzeRepeatChains(seq, P);
 
@@ -1224,6 +1248,38 @@ MuseScore {
             }
 
             for (var li = 0; li < lines.length; li++) { analyzeLine(lines[li]); }
+
+            // ---- hand position memory: a key coming back inside one hand position (see recurKeep),
+            // as a single note or inside a repeated chord (which keeps its fingering). Looked back
+            // over at most recurNotes onsets of this staff, without a rest longer than lineGap and
+            // while all the keys involved fit within recurSpan. The repetition of a single note at
+            // the next onset is left to repetitionCost / the repeated-note pedal.
+            var chordKeys = {};
+            for (i = 0; i < n; i++) {
+                if (seq[i].isChord) { chordKeys[seq[i].chordID] = (chordKeys[seq[i].chordID] || "") + seq[i].pitch + ","; }
+            }
+            for (i = 0; i < n; i++) {
+                var ri = seq[i], rlo = ri.pitch, rhi = ri.pitch, back = 0, onset = ri.start;
+                for (k = i - 1; k >= 0; k--) {
+                    var rk = seq[k];
+                    if (Math.abs(rk.start - onset) > 1e-6) {
+                        if (onset - rk.end > P.lineGap + 1e-6) { break; }
+                        back++;
+                        onset = rk.start;
+                    }
+                    if (back === 0) { continue; }
+                    if (back > P.recurNotes || ri.start - rk.start > P.recurBeats + 1e-6) { break; }
+                    rlo = Math.min(rlo, rk.pitch); rhi = Math.max(rhi, rk.pitch);
+                    if (rhi - rlo > P.recurSpan * h.sizeScale) { break; }
+                    if (rk.pitch === ri.pitch) {
+                        // Between two different chords the hand changes shape (a common tone may
+                        // change finger: IV -> V7 is 1-3-5 -> 1-2-4-5); only a repeated chord is kept.
+                        var otherChord = ri.isChord && rk.isChord && chordKeys[ri.chordID] !== chordKeys[rk.chordID];
+                        if (!(back === 1 && !ri.isChord && !rk.isChord) && !otherChord) { ri.recurPrev = rk; }
+                        break;
+                    }
+                }
+            }
 
             function analyzeLine(L) {
                 var p = pitchesOf(L), m = L.length, a, b;
@@ -1627,11 +1683,28 @@ MuseScore {
                 }
             }
 
+            // Is note i a turning point of its line on the outer side of the hand (LH low, RH high),
+            // with every neighbour at least thumbTurnSemis away on the fingers' side? (see thumbTurn)
+            function thumbOnOuterTurn(i) {
+                var lo = lineOf[i];
+                if (!lo) { return false; }
+                var sgn = side === "right" ? -1 : 1, near = 0;
+                for (var dn = -1; dn <= 1; dn += 2) {
+                    var q = lo.pos + dn;
+                    if (q < 0 || q >= lo.line.length) { continue; }
+                    var iv = (seq[lo.line[q]].pitch - seq[i].pitch) * sgn;
+                    if (iv < P.thumbTurnSemis) { return false; }
+                    near++;
+                }
+                return near > 0;
+            }
+
             // ---- B. rules -> per-note costs and locks
             for (i = 0; i < n; i++) {
                 var nn = seq[i], g = guides[i];
                 var uc = [0, 0, 0, 0, 0, 0];
                 var bkind = g ? g.kind : nn.ctx;
+                var outerTurn = !nn.isChord && thumbOnOuterTurn(i);
                 for (var f = 1; f <= 5; f++) {
                     if (g && f !== g.finger) {
                         var isAlt = false;
@@ -1648,6 +1721,7 @@ MuseScore {
                         var interior = side === "right" ? !nn.isPeak : !nn.isValley;
                         if (interior) { uc[f] += P.fifthInterior * P.wMelodic; }
                     }
+                    if (f < 5 && outerTurn) { uc[f] += (f === 1 ? P.thumbTurn : P.outerTurn * (5 - f)) * P.wMelodic; }
                 }
                 nn.uc = uc;
                 nn.guide = g;
@@ -1684,7 +1758,9 @@ MuseScore {
                 if (fa === fb && xba && !(na.duration >= 4 || leap || na.staccato)) { return true; }
                 // At a change of accompaniment figure the hand takes a new position, so a crossing of
                 // long fingers is allowed there; the same finger twice in a row is still not.
-                if (fa > 1 && fb > 1 && (fb - fa) * xba < 0 && !(leap || isFigureChange(na, nb))) { return true; }
+                // A key still held when the next one is struck pins the hand: no repositioning then.
+                var held = na.end > nb.start + 1e-6;
+                if (fa > 1 && fb > 1 && (fb - fa) * xba < 0 && !(leap || (!held && isFigureChange(na, nb)))) { return true; }
             } else if (na.isChord !== nb.isChord || na.chordID !== nb.chordID) {
                 // Chord <-> note or chord <-> chord: H3 only (the hand may shift between the two, so
                 // crossings are allowed), and only when the two keys are played legato.
@@ -1762,7 +1838,7 @@ MuseScore {
 
         // Cost of playing nb with fb after na with fa, including the per-note cost of nb; -1 when the
         // transition violates a hard constraint.
-        function stepCost(h, fa, fb, na, nb, relaxSpan) {
+        function stepCost(h, fa, fb, na, nb, relaxSpan, inPosition) {
             if (skip(h, fa, fb, na, nb, relaxSpan)) { return -1; }
             if (na === nb) { return 0; }
             var P = h.params, c;
@@ -1777,7 +1853,15 @@ MuseScore {
                     // Hand-position comfort: successive fingers should be about as far apart as the
                     // keys (1-4 on a second, or 1-5 on a third, cramps the hand for nothing). Uses the
                     // same comfortable spans as the chord shapes, scaled by hand size.
-                    if (fa !== fb) { c += P.wComfort * comfortDev(h, fa, fb, Math.abs(d)); }
+                    if (fa !== fb) {
+                        var cd = comfortDev(h, fa, fb, Math.abs(d));
+                        var weak = (fa === 4 || fb === 4) && Math.abs(fa - fb) === 1 && Math.abs(d) > 2;
+                        c += P.wComfort * cd * (weak ? P.weakStretch : 1);
+                    }
+                    // Return to a key of the current hand position with its finger (hand position
+                    // memory): the hand is already shaped over these keys. Only for in-position
+                    // movements: a thumb passage or a leap moves the hand, so it is never cheaper.
+                    if (inPosition) { c *= P.recurMove; }
                 }
             } else if (na.pitch === nb.pitch && na.repKeep && nb.repKeep) {
                 // a repeated-note pedal struck alone and then inside a chord (or the reverse)
@@ -1788,6 +1872,9 @@ MuseScore {
                 // buildSequence (0.05 beat), which inflates the geometric cost about sevenfold and
                 // would let the spread of one chord outweigh the whole musical context around it.
                 if (na.isChord && nb.isChord && na.chordID === nb.chordID) { c *= P.chordSpreadWeight; }
+                // A chord (or a note after a chord) that comes back with the same fingers: the hand
+                // is already shaped over it (hand position memory; crossings below are not reduced).
+                if (inPosition) { c *= P.recurMove; }
                 // Leaving (or reaching) a chord legato with two long fingers crossing (e.g. 5 on the
                 // top note, then 4 above it) is a real crossing only partly excused by the possibility
                 // of shifting the hand between the two: soft, not forbidden.
@@ -1796,6 +1883,12 @@ MuseScore {
                     na.end >= nb.start - 1e-6 && !isLeap(h, na, nb)) {
                     c += P.chordCrossing;
                 }
+                // A thumb passage into or out of a chord (E3 with the thumb, then a chord whose
+                // lower note is above it in the left hand) is a thumb passage like any other.
+                if (!sameChord && nb.pitch !== na.pitch && !isLeap(h, na, nb) &&
+                    ((fa > 1 && fb === 1 && nb.x > na.x) || (fa === 1 && fb > 1 && nb.x < na.x))) {
+                    c += P.wCross * crossingCost(h, fa, fb, na, nb);
+                }
             }
             // A movement that follows a recognised pattern (both notes in a pattern of the same kind,
             // both fingers as proposed) is a TRAINED gesture: scale, arpeggio and chromatic fingerings
@@ -1803,6 +1896,7 @@ MuseScore {
             // (e.g. 1-3 on a semitone in the chromatic scale).
             var ga = na.guide, gb = nb.guide;
             if (ga && gb && ga.kind === gb.kind && fa === ga.finger && fb === gb.finger) { c *= P.trainedFactor; }
+
             if (nb.uc) { c += nb.uc[fb]; }
             return c;
         }
@@ -1877,8 +1971,24 @@ MuseScore {
             return true;
         }
 
+        // Hand position memory (recurKeep) for window level lv played with finger f. recur.known[lv]
+        // is the finger of an earlier, already committed stroke of the same key; recur.inWin[lv] is
+        // the window level of an earlier stroke still being planned (DFS only: `path` is its
+        // candidate path; the DP never receives such links, see planWindow).
+        // recurKept(): the note returns to a key of the hand position with the same finger (true),
+        // with another finger (false) or is not a return (null).
+        function recurKept(recur, lv, f, path) {
+            if (!recur) { return null; }
+            var k = recur.known[lv];
+            if (k) { return k === f; }
+            var j = recur.inWin[lv];
+            if (path && j !== undefined) { return path[j] === f; }
+            return null;
+        }
+        function recurCost(recur, lv, f, path) { return recurKept(recur, lv, f, path) === false ? recur.w : 0; }
+
         // Exact minimum-cost path by backward DP; ties -> lexicographically smallest fingers.
-        function searchDP(h, nseq, depth, options, relaxSpan) {
+        function searchDP(h, nseq, depth, options, relaxSpan, recur) {
             var steps = [null];
             var lv, a, b, fa, fb;
             for (lv = 1; lv < depth; lv++) {
@@ -1887,8 +1997,8 @@ MuseScore {
                     fa = options[lv - 1][a];
                     for (b = 0; b < options[lv].length; b++) {
                         fb = options[lv][b];
-                        var sc = stepCost(h, fa, fb, nseq[lv - 1], nseq[lv], relaxSpan);
-                        if (sc >= 0) { table[fa * 8 + fb] = sc; }
+                        var sc = stepCost(h, fa, fb, nseq[lv - 1], nseq[lv], relaxSpan, recurKept(recur, lv, fb, null) === true);
+                        if (sc >= 0) { table[fa * 8 + fb] = sc + recurCost(recur, lv, fb, null); }
                     }
                 }
                 steps.push(table);
@@ -1911,7 +2021,7 @@ MuseScore {
                     toGo[lv][fa] = best;
                 }
             }
-            var unary0 = function (f) { return nseq[0].uc ? nseq[0].uc[f] : 0; };
+            var unary0 = function (f) { return (nseq[0].uc ? nseq[0].uc[f] : 0) + recurCost(recur, 0, f, null); };
             var bestTotal = Infinity;
             for (a = 0; a < options[0].length; a++) {
                 var t0 = toGo[0][options[0][a]] + unary0(options[0][a]);
@@ -1943,7 +2053,7 @@ MuseScore {
         }
 
         // Exhaustive search with branch-and-bound (costs are non-negative) and held-finger rules.
-        function searchDFS(h, nseq, depth, options, held, relaxSpan) {
+        function searchDFS(h, nseq, depth, options, held, relaxSpan, recur) {
             var heldBefore = {};
             var i;
             for (i = 0; i < held.length; i++) {
@@ -1966,11 +2076,13 @@ MuseScore {
                     var finger = choices[c];
                     var add;
                     if (level > 0) {
-                        add = stepCost(h, candidate[level - 1], finger, nseq[level - 1], nseq[level], relaxSpan);
+                        add = stepCost(h, candidate[level - 1], finger, nseq[level - 1], nseq[level], relaxSpan,
+                                       recurKept(recur, level, finger, candidate) === true);
                         if (add < 0) { continue; }
                     } else {
                         add = nseq[0].uc ? nseq[0].uc[finger] : 0;
                     }
+                    add += recurCost(recur, level, finger, candidate);
                     if (heldBefore[level]) {
                         var clash = false;
                         for (var q = 0; q < heldBefore[level].length; q++) {
@@ -2064,9 +2176,20 @@ MuseScore {
                     options.push(kept);
                 }
                 if (!feasible) { continue; }
-                var path = (held.length === 0 && dpIsExact(win, L)) ?
-                    searchDP(h, win, L, options, pr.relax) :
-                    searchDFS(h, win, L, options, held, pr.relax);
+                // Hand position memory: links to strokes already fingered are per-note costs (DP
+                // stays exact); links between notes of the window need the exhaustive search.
+                var recur = { known: {}, inWin: {}, w: P.recurKeep }, inWinLinks = false;
+                for (lv = off; lv < L; lv++) {
+                    var rp = win[lv].recurPrev;
+                    if (!rp) { continue; }
+                    if (rp.finger > 0) { recur.known[lv] = rp.finger; continue; }
+                    for (var rl = off; rl < lv; rl++) {
+                        if (win[rl] === rp) { recur.inWin[lv] = rl; inWinLinks = true; break; }
+                    }
+                }
+                var path = (held.length === 0 && !inWinLinks && dpIsExact(win, L)) ?
+                    searchDP(h, win, L, options, pr.relax, recur) :
+                    searchDFS(h, win, L, options, held, pr.relax, recur);
                 if (path) { return { fingers: path.slice(off), profile: p }; }
             }
             // Unreachable in practice (profile 6 has no hard constraint left except chord order).

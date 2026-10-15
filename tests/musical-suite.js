@@ -335,6 +335,49 @@ function comboCases() {
     return cases;
 }
 
+// Hand position: a key that comes back while the hand stays in place keeps its finger, and the
+// thumb is not put on the bottom (LH) / top (RH) of a figure whose other notes lie on the fingers'
+// side (it would need a thumb passage and its undoing at every bar).
+function positionCases() {
+    const cases = [];
+    const sameKeySameFinger = (r, c) => {
+        const bad = [];
+        c.items.forEach((it, i) => {
+            for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
+                if (c.items[j].pitch !== it.pitch) { continue; }
+                if (i - j >= 2 && r.fingers[j] !== r.fingers[i]) { bad.push("#" + i); }
+                break;
+            }
+        });
+        return bad.length ? "a returning key changes finger at " + bad.join(", ") : null;
+    };
+    const fig = (bass, mid, top) => [bass, mid, top, mid, top, mid];
+    ["M", "L"].forEach(size => {
+        cases.push({ group: "M. Hand position", name: "LH broken chord over a tenth, F2-C3-A3-C3-A3-C3 x2, then G (" + size + ")",
+            items: line(fig("F2", "C3", "A3").concat(fig("F2", "C3", "A3"), fig("G2", "D3", "B3"), fig("G2", "D3", "B3")), 0.5),
+            side: "left", size: size, min: "ACCEPTABLE VARIANT",
+            expected: digits("531313531313531313531313"), variants: [digits("521212521212521212521212")],
+            check: sameKeySameFinger,
+            ref: "teacher's correction of the 2.1.0 output on 'Venezia' (Saroglia/Martellotta) bars 19-26: the hand does not move, C3 stays on 3" });
+    });
+    cases.push({ group: "M. Hand position", name: "LH broken chord over a twelfth with the fifth on top, G2-D3-G3 (L)",
+        items: line(fig("G2", "D3", "G3").concat(fig("G2", "D3", "G3")), 0.5), side: "left", size: "L", min: "CANONICAL",
+        expected: digits("521212521212"), check: sameKeySameFinger, ref: "'Venezia' bars 17-18 (output accepted by the teacher)" });
+    cases.push({ group: "M. Hand position", name: "RH figure mirrored: B5-E5-G4-E5-G4-E5 (thumb not on the top note)",
+        items: line(["B5", "E5", "G4", "E5", "G4", "E5", "B5", "E5", "G4", "E5", "G4", "E5"], 0.5), side: "right", size: "L",
+        min: "VALID (no reference)", check: (r, c) => {
+            const e = sameKeySameFinger(r, c);
+            if (e) { return e; }
+            return r.fingers[0] === 1 || r.fingers[6] === 1 ? "thumb on the top note B5" : null;
+        }, ref: "same rule as the left-hand case, right hand" });
+    cases.push({ group: "M. Hand position", name: "repeated two-note chord keeps its fingering",
+        items: line(["A2", "E3", ["A3", "E4"], "E3", ["A3", "E4"], "E3"], 0.5), side: "left", size: "L",
+        min: "VALID (no reference)", check: r => r.fingers[2] === r.fingers[5] && r.fingers[3] === r.fingers[6] ? null :
+            "the repeated chord A3-E4 changes fingering (" + r.fingers.join("") + ")",
+        ref: "'Venezia' bar 55: the hand stays on the chord" });
+    return cases;
+}
+
 function analysisCases() {
     const cases = [];
     cases.push({ group: "K. Recognition limits", name: "neighbour-note figure is a five-finger position, not a scale",
@@ -390,7 +433,7 @@ function anchorAndSizeCases() {
 const digitsExport = digits;
 function allCases() {
     return [].concat(scaleCases(), chromaticCases(), arpeggioCases(), chordCases(), repeatedCases(),
-                     blackKeyCases(), leapCases(), heldCases(), comboCases(), analysisCases(), anchorAndSizeCases());
+                     blackKeyCases(), leapCases(), heldCases(), comboCases(), positionCases(), analysisCases(), anchorAndSizeCases());
 }
 
 module.exports = { allCases, REF_MAJOR_RH, REF_MAJOR_LH, REF_HARM_RH, REF_HARM_LH, STEPS, twoOctaves, digits: digitsExport, TONICS, MINOR_NAMES };
