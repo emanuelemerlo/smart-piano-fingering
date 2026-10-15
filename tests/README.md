@@ -23,7 +23,7 @@ Covered: both/one hand, same staff twice, Keep existing on/off (including custom
 `1-2`), chords, rests, ties, grace notes, tuplets, unison between voices, selection (middle, first
 and last measure, one staff only, same result as the full run), cross-staff notes, percussion
 staves, empty scores, running twice, rollback after a failure while writing (fault injection),
-all seven hand sizes, determinism, a 1536-note score, and a repeated-note pedal under another
+all six hand profiles and a custom hand (cm and child's hand from the dialog), determinism, a 1536-note score, and a repeated-note pedal under another
 voice (one finger; "write the finger only when it changes" on and off).
 
 Not covered: how the dialog looks and clicks on its buttons (progress bar, Stop), and undo

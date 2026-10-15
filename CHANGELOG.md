@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **Hand model.** The seven size presets (`XXS` ... `XXL`, one coefficient scaling the whole hand)
+  are replaced by **hand profiles defined by a measured span**, thumb to little finger: child 5-8
+  (14.5 cm), child 9-12 (17 cm), small hand (19 cm), woman (20 cm, default), man (22.5 cm), large
+  hand (24 cm), or a **custom** span in cm. The former presets did not match real hands: `M` was the
+  hand of an average woman, a normal adult male hand was closer to `L`, and `XXS` could not reach a
+  fourth.
+  - Two spans instead of one: the pairs with the thumb follow the 1-5 span, the pairs of the long
+    fingers follow the 2-5 span, which varies about half as much between people.
+  - **Mobility** separate from size: a child's hand has less abduction between the long fingers,
+    an earlier onset of strain, a less independent 4th finger, a shorter and harder thumb passage,
+    a weaker 5th finger and slower repositioning (estimates, to be validated by teachers).
+  - The dialog shows how far the chosen hand reaches ("an octave at most, a seventh comfortably").
+  - The **Woman** profile gives exactly the results of the former `M`; the old names are still
+    accepted by scripts (`XXS`/`XS` -> child 5-8, `S` -> child 9-12, `M` -> woman, `L` -> man,
+    `XL`/`XXL` -> large).
+  - Golden files `scale4-XXS/M/XXL` replaced by `scale4-child58/woman/large` (`woman` is unchanged).
+
 ### Fixed
 - **Hand position memory.** A key that comes back after one or a few other notes while the hand
   stays in place keeps its finger. Before, every pair of notes was optimised on its own, so in
