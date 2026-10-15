@@ -2,7 +2,7 @@
 
 MuseScore plugin that calculates and inserts piano fingering numbers (`1`–`5`) for the right and left hands.
 
-> **Status:** version 2.0.0. The fingering algorithm and the score-reading logic are covered by automated tests that run outside MuseScore (see [Testing](#testing)). The plugin as a whole has **not** been validated on every MuseScore release: try it on a copy of your score first.
+> **Status:** version 2.0.1. The fingering algorithm and the score-reading logic are covered by automated tests in Node, and the plugin itself is run inside MuseScore 4 on Windows, macOS and Linux by the CI (see [Testing](#testing)). It has **not** been validated on every MuseScore release: try it on a copy of your score first.
 
 ## Features
 
@@ -90,17 +90,22 @@ The rules, their musical rationale and every coefficient are documented in the c
 |---|---|
 | `smart-piano-fingering.qml` | Plugin UI, fingering algorithm and MuseScore adapter. |
 | `smart-piano-fingering.png` | Plugin thumbnail referenced by `thumbnailName`. |
+| `docs/RELEASE-NOTES-2.0.0.md`, `docs/README.txt` | User-facing release notes (Markdown and plain text). |
 | `tests/run-tests.js` | Node tests: algorithm, musical reference suite, invariants, score adapter (mock score). |
 | `tests/musical-suite.js` | Reference cases (scales, chromatic, arpeggios, chords, repeated notes, black keys, leaps, held notes, combinations). |
 | `tests/compare-legacy.js` | Compares version 1.1.0 (`tests/legacy/`) with the current algorithm. |
+| `tests/qml-compat-check.js` | Static checks on the QML file and version consistency. |
+| `tests/musescore-runtime.js`, `tests/runtime-scenarios.js` | Runs the real plugin inside MuseScore 4 on test scores (see [`tests/README.md`](tests/README.md)). |
+| `tests/lib/`, `tests/golden/`, `tests/fixtures/` | Runtime-test helpers, saved reference fingerings and test scores. |
 | `tests/REPORT.md`, `tests/COMPARISON.md` | Generated test tables. |
 | `CHANGELOG.md` | Release history. |
+| `RELEASE_CHECKLIST.md` | Steps to follow before tagging a release. |
 | `LICENSE` | GNU General Public License v3.0. |
 | `THIRD_PARTY_NOTICES.md` | Attribution for the algorithm's origin. |
 | `AUTHORS.md` | Authors and attribution. |
 | `CONTRIBUTING.md` | Contribution and validation guidance. |
 | `SECURITY.md` | Responsible reporting guidance. |
-| `.github/` | Issue/PR templates and the repository checks workflow. |
+| `.github/` | Issue/PR templates and the CI workflows (repository checks; cross-platform tests in MuseScore). |
 
 ## Testing
 
@@ -108,9 +113,11 @@ The rules, their musical rationale and every coefficient are documented in the c
 node tests/run-tests.js            # all tests
 node tests/run-tests.js --report   # also writes tests/REPORT.md
 node tests/compare-legacy.js       # writes tests/COMPARISON.md (1.1.0 vs current)
+node tests/qml-compat-check.js     # static QML checks and version consistency
+node tests/musescore-runtime.js --musescore <path to MuseScore executable>   # needs MuseScore 4
 ```
 
-The tests extract the embedded JavaScript from the QML file and run it against a mock score. They verify the algorithm against a reference suite of standard fingerings (classified as canonical, acceptable variant, non-standard or physically impossible by an independent checker), structural invariants on random material, and the adapter logic (unisons, ties, tuplets, cross-staff, selection window, keep/replace rules). They do **not** exercise MuseScore's QML runtime, so manual verification is still required before a release; see [CONTRIBUTING.md](CONTRIBUTING.md).
+The tests extract the embedded JavaScript from the QML file and run it against a mock score. They verify the algorithm against a reference suite of standard fingerings (classified as canonical, acceptable variant, non-standard or physically impossible by an independent checker), structural invariants on random material, and the adapter logic (unisons, ties, tuplets, cross-staff, selection window, keep/replace rules). These Node tests do not use MuseScore. `tests/musescore-runtime.js` runs the real plugin inside MuseScore 4 (headless, on a test copy of the QML without the dialog) and checks the exported score; the CI runs it on Windows, macOS and Linux. The dialog itself (buttons, progress bar, Stop) and Undo are not covered, so a manual check is still required before a release; see [`tests/README.md`](tests/README.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

@@ -183,8 +183,9 @@ standard cases taken from the piano method books: all scales in all keys and
 forms, chromatic scales, arpeggios and their inversions, chords, repeated
 notes, black-key situations, leaps, held notes and combinations such as
 chord -> scale or scale -> arpeggio. Every case matches the standard
-fingering or an accepted variant. This testing was done outside MuseScore;
-please report any fingering that looks unnatural to you.
+fingering or an accepted variant. The plugin was also run inside MuseScore 4
+on Windows, macOS and Linux on a set of test scores; please report any
+fingering that looks unnatural to you.
 
 
 FEEDBACK
