@@ -2,7 +2,7 @@
 
 MuseScore plugin that calculates and inserts piano fingering numbers (`1`–`5`) for the right and left hands.
 
-> **Status:** version 2.1.0. The fingering algorithm and the score-reading logic are covered by automated tests in Node, and the plugin itself is run inside MuseScore 4 on Windows, macOS and Linux by the CI (see [Testing](#testing)). It has **not** been validated on every MuseScore release: try it on a copy of your score first.
+> **Status:** version 2.2.0. The fingering algorithm and the score-reading logic are covered by automated tests in Node, and the plugin itself is run inside MuseScore 4 on Windows, macOS and Linux by the CI (see [Testing](#testing)). It has **not** been validated on every MuseScore release: try it on a copy of your score first.
 
 ## Features
 
@@ -83,6 +83,11 @@ and only then lets the biomechanical model choose among the musically acceptable
    previous note so that every transition is evaluated, with chords planned as a unit.
    Hard constraints (held notes, chord order and span, your existing fingerings) are relaxed only
    when nothing else works, and any remaining conflict is reported in the final message.
+5. **Hand model** (since 2.2): the chosen hand profile gives, for every pair of fingers, the widest
+   span of a chord and the widest span played without tension. A stretch costs only for the part
+   beyond that comfortable span, so the same passage can be fingered differently for a child, a
+   woman or a man. A key that comes back while the hand stays in place keeps its finger, and a
+   finger that holds a key is never passed over or under.
 
 The rules, their musical rationale and every coefficient are documented in the code
 (`createSmartPianoFingeringCore`); coefficients are collected in `DEFAULT_PARAMS`.
@@ -105,7 +110,7 @@ The rules, their musical rationale and every coefficient are documented in the c
 | `smart-piano-fingering.qml` | Plugin UI, fingering algorithm and MuseScore adapter. |
 | `smart-piano-fingering.png` | Plugin thumbnail referenced by `thumbnailName`. |
 | `docs/README.txt` | User guide (plain text, included in the release ZIP). |
-| `docs/RELEASE-NOTES-2.1.0.md`, `docs/RELEASE-NOTES-2.0.0.md` | User-facing release notes. |
+| `docs/RELEASE-NOTES-2.2.0.md`, `docs/RELEASE-NOTES-2.1.0.md`, `docs/RELEASE-NOTES-2.0.0.md` | User-facing release notes. |
 | `tests/run-tests.js` | Node tests: algorithm, musical reference suite, invariants, score adapter (mock score). |
 | `tests/musical-suite.js` | Reference cases (scales, chromatic, arpeggios, chords, repeated notes, black keys, leaps, held notes, combinations). |
 | `tests/compare-legacy.js` | Compares version 1.1.0 (`tests/legacy/`) with the current algorithm. |

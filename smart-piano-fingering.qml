@@ -23,7 +23,7 @@ import QtQuick.Layouts 1.3
 import MuseScore 3.0
 
 MuseScore {
-    version: "2.1.0"
+    version: "2.2.0"
     description: qsTr("Inserts piano fingering (1-5) for the right and left hand into the open score.")
     menuPath: "Plugins.SmartPianoFingering"   // MuseScore 3 only; ignored by MuseScore 4
     title: "Smart Piano Fingering"
@@ -1095,7 +1095,7 @@ MuseScore {
             return { cyc: cyc, allBlack: allBlack };
         }
 
-        // Comfortable span (semitones, M hand) of two fingers of the same hand position.
+        // Average width of a semitone on the keyboard (cm).
         var CM_PER_SEMITONE = 16.5 / 12;
         // Pairs whose comfortable span is a smaller part of their maximum when the keys are struck in
         // succession: thumb and index open very wide in a chord, but alternating on a wide interval

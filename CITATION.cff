@@ -5,7 +5,7 @@ authors:
   - family-names: Merlo
     given-names: Emanuele
     affiliation: Independent developer
-version: 2.1.0
+version: 2.2.0
 date-released: 2026-10-15
 license: GPL-3.0-only
 type: software

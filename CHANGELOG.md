@@ -6,67 +6,65 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-15
+
+### Added
+- **Hand profiles based on a measured span** (thumb to little finger, hand spread flat on a table)
+  replace the seven size presets `XXS` ... `XXL`: child 5-8 years (14.5 cm), child 9-12 (17 cm),
+  small hand (19 cm), woman (20 cm, default), man (22.5 cm), large hand (24 cm), or **Custom...**
+  with a span in cm and an optional **Child's hand**. The dialog shows how far the chosen hand
+  reaches ("Reaches an octave at most, a seventh comfortably"). The spans follow pianist hand-span
+  surveys (mean adult male 22.6 cm, female 20.1 cm). The former presets did not match real hands:
+  `M` was an average woman's hand, a normal adult male hand was closer to `L`, and `XXS` could not
+  reach a fourth.
+- **Two spans**: finger pairs with the thumb follow the 1-5 span (reach grows as span - 2.5 cm, about
+  one interval per 2.3 cm); pairs of the long fingers follow the 2-5 span, which varies about half as
+  much between people.
+- **Mobility separate from size.** A child's hand has less abduction between the long fingers, an
+  earlier onset of strain, a less independent 4th finger, a shorter and harder thumb passage, a
+  weaker 5th finger and slower repositioning. These values are estimates, to be validated by
+  teachers.
+- **Hand position memory.** A key that comes back after one or a few other notes while the hand
+  stays in place keeps its finger (`recurKeep`); a repeated chord keeps its fingering
+  (`recurChordKeep`). A common tone between two different chords may still change finger
+  (IV -> V7 stays `1-3-5 -> 1-2-4-5`).
+- Reference suite: new group *M. Hand position* (5 cases) and six hand-model tests; the MuseScore
+  runtime scenario `hand-sizes` runs the six profiles and two custom hands set from the dialog.
+
 ### Changed
-- **Hand model.** The seven size presets (`XXS` ... `XXL`, one coefficient scaling the whole hand)
-  are replaced by **hand profiles defined by a measured span**, thumb to little finger: child 5-8
-  (14.5 cm), child 9-12 (17 cm), small hand (19 cm), woman (20 cm, default), man (22.5 cm), large
-  hand (24 cm), or a **custom** span in cm. The former presets did not match real hands: `M` was the
-  hand of an average woman, a normal adult male hand was closer to `L`, and `XXS` could not reach a
-  fourth.
-  - Two spans instead of one: the pairs with the thumb follow the 1-5 span, the pairs of the long
-    fingers follow the 2-5 span, which varies about half as much between people.
-  - **Mobility** separate from size: a child's hand has less abduction between the long fingers,
-    an earlier onset of strain, a less independent 4th finger, a shorter and harder thumb passage,
-    a weaker 5th finger and slower repositioning (estimates, to be validated by teachers).
-  - The dialog shows how far the chosen hand reaches ("an octave at most, a seventh comfortably").
-  - The **Woman** profile gives exactly the results of the former `M`; the old names are still
-    accepted by scripts (`XXS`/`XS` -> child 5-8, `S` -> child 9-12, `M` -> woman, `L` -> man,
-    `XL`/`XXL` -> large).
-  - Golden files `scale4-XXS/M/XXL` replaced by `scale4-child58/woman/large`.
-- **Biomechanics follow the hand profile.** The comfortable span of every finger pair comes from
-  the profile (widest interval without tension = span - 5 cm for 1-5, the chord limit span - 2.5 cm,
-  same ratio for the other pairs, times the child's mobility), and the movement cost between two
-  fingers is the distance OUTSIDE that comfortable span; the distance from the relaxed spacing of
-  the fingers (the only measure of version 1) now has a small weight (`restWeight` 0.3). Before,
-  1-3 on a sixth cost like a real stretch even for a large hand, which produced fingerings such as
-  `4 1 4` (4 over the thumb) on G2-D3-B3; now `5 3 1`.
-  - Keys struck in succession may open a little wider than a chord (`pivotCm`); white + black keys
-    are not "cramped" (1-3 on C-C#); thumb and index alternating on a wide interval keep a narrower
-    comfortable span (a broken sixth is 1-3, not 1-2).
-  - The hand position memory no longer makes a stretch cheaper: only the movement towards the
-    relaxed spacing is reduced when the hand returns to keys it is shaped over.
-  - Thumb passages into or out of a chord replace the geometric cost (instead of adding to it); a
-    chord after a single note may be reached by repositioning the hand (`chordShift`).
-  - A repeated chord keeps its fingering (`recurChordKeep`); 1 and 5 on the outer notes of a chord
-    from a fifth (was a sixth).
-  - The default profile *Woman* is therefore no longer identical to the former `M`: in *Venezia*
-    16 bars of the left hand and 11 of the right change, among them every `4 1 4` crossing.
-- **Held keys:** while a finger holds a key, no other finger passes over or under it (a held E4 with
-  4 and G4 above it with 3 or 1 was accepted).
+- **Biomechanics follow the hand profile.** The comfortable span of every finger pair comes from the
+  profile (span - 5 cm for 1-5, the same ratio to the chord limit for the other pairs, times the
+  child's mobility). The movement cost between two fingers is the distance *outside* that
+  comfortable span; the distance from the relaxed spacing of the fingers, the only measure of
+  versions 1 and 2.0-2.1, now has a small weight (`restWeight` 0.3). Before, 1-3 on a sixth cost
+  like a real stretch for every hand.
+  - Keys struck in succession may open a little wider than a chord (`pivotCm`); a white and a black
+    key are not "cramped" (1-3 on C-C#); thumb and index alternating on a wide interval keep a
+    narrower comfortable span (a broken sixth is 1-3, not 1-2).
+  - Stretches of the 4th finger with its neighbours (3-4, 4-5) cost more (`weakStretch`).
+  - 1 and 5 go on the outer notes of a chord from a fifth (was a sixth).
+- Thumb passages into or out of a chord are costed as thumb passages; a chord after a single note
+  may be reached by repositioning the hand (`chordShift`); a crossing of two long fingers between a
+  note and a chord costs more (`chordCrossing` 6 -> 10).
+- The default profile *Woman* has the chord limits of the former `M`, but because of the changes
+  above its fingerings are not identical to 2.1.0. The old preset names are still accepted by
+  scripts (`XXS`/`XS` -> child 5-8, `S` -> child 9-12, `M` -> woman, `L` -> man, `XL`/`XXL` -> large).
+- New parameters: `recurKeep`, `recurChordKeep`, `recurNotes`, `recurSpan`, `recurBeats`,
+  `recurMove`, `thumbTurn`, `thumbTurnSemis`, `outerTurn`, `weakStretch`, `restWeight`, `pivotCm`,
+  `chordShift`.
+- Golden files regenerated with MuseScore 4.7.5; `scale4-XXS/M/XXL` replaced by
+  `scale4-child58/woman/large`.
 
 ### Fixed
-- **Hand position memory.** A key that comes back after one or a few other notes while the hand
-  stays in place keeps its finger. Before, every pair of notes was optimised on its own, so in
-  broken-chord accompaniments the same key changed finger inside one bar: F2-C3-A3-C3-A3-C3 in the
-  left hand came out `5 3 1 5 1 4` and then `1 4 1 5 1 4` (*Venezia*, Saroglia/Martellotta, bars
-  19-21); now `5 3 1 3 1 3`. A repeated chord also keeps its fingering (a common tone between two
-  different chords may still change finger, e.g. IV -> V7).
-- **No thumb on the bottom of a left-hand figure** (top of a right-hand one) when its neighbours lie
-  on the fingers' side: it forced a thumb passage and its undoing at every bar (`1 4 1 …` on
-  F2-C3-A3). The outer finger is used instead, also on a final bass reached by a leap.
-- Thumb passages into or out of a chord are now costed like any other thumb passage, and a crossing
-  of two long fingers between a note and a chord costs more (`chordCrossing` 6 -> 10).
-- A key still held when the next one is struck no longer allows a crossing of long fingers at a
-  change of accompaniment figure (the hand cannot reposition while it holds a key).
-
-### Changed
-- Stretches of the 4th finger with its neighbours (3-4, 4-5) cost twice as much as other
-  stretches (`weakStretch`): 5-4 on a fifth is no longer preferred to 3-1 on a sixth.
-- New parameters `recurKeep`, `recurNotes`, `recurSpan`, `recurBeats`, `recurMove`, `thumbTurn`,
-  `thumbTurnSemis`, `outerTurn`, `weakStretch`.
-- Reference suite: new group *M. Hand position* (5 cases); golden files `rich-notation`,
-  `scale4-XXS` and `stress` regenerated with MuseScore 4.7.5 (the changes are returning keys that
-  now keep their finger).
+- In broken-chord accompaniments the same key changed finger inside one bar although the hand does
+  not move: F2-C3-A3-C3-A3-C3 in the left hand came out `5 3 1 5 1 4`, then `1 4 1 5 1 4` with the
+  thumb on the bass (*Venezia*, Saroglia/Martellotta, bars 19-21); now `5 3 1 3 1 3`. Likewise
+  G2-D3-B3 `4 1 4` (4 over the thumb) is now `5 3 1`.
+- No thumb on the bottom of a left-hand figure (top of a right-hand one) when its neighbours lie on
+  the fingers' side: it forced a thumb passage and its undoing at every bar. The outer finger is
+  used instead, also on a final bass reached by a leap (`thumbTurn`, `outerTurn`).
+- While a finger holds a key, no other finger passes over or under it (a held E4 with 4 and G4
+  above it with 3 or 1 was accepted), also at a change of accompaniment figure.
 
 ## [2.1.0] - 2026-10-15
 
