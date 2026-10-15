@@ -96,6 +96,9 @@ function createHarness(opts) {
             "        if (cfg.lh !== undefined) { lhStaff.value = cfg.lh; }\n" +
             "        if (cfg.size !== undefined) { sizeBox.currentIndex = cfg.size; }\n" +
             "        if (cfg.keep !== undefined) { keepExisting.checked = cfg.keep; }\n" +
+            // compact repeated-note numbering is off unless a scenario asks for it, so the
+            // "every note is fingered" checks and the golden files keep their meaning
+            "        compactRepeats.checked = cfg.compact === true;\n" +
             "        if (cfg.select) {\n" +
             "            var m = curScore.firstMeasure, i = 1, t0 = -1, t1 = -1;\n" +
             "            while (m) {\n" +

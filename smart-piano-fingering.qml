@@ -32,7 +32,7 @@ MuseScore {
     pluginType: "dialog"
     requiresScore: true
     width: 400
-    height: 400
+    height: 430
 
     Component.onCompleted: {
         if (mscoreMajorVersion > 4 || (mscoreMajorVersion === 4 && mscoreMinorVersion >= 4)) {
@@ -177,6 +177,7 @@ MuseScore {
             if (!jobs.length) { status.text = qsTr("No notes found."); return; }
 
             runCtx = { adapter: adapter, keep: keep, range: range, jobs: jobs,
+                       compact: compactRepeats.checked,
                        jobIndex: 0, done: 0, total: total, notes: notes };
             cancelRequested = false;
             progress.value = 0;
@@ -235,7 +236,8 @@ MuseScore {
             cmdOpen = true;
             var conflicts = 0;
             for (var j = 0; j < ctx.jobs.length; j++) {
-                var r = ctx.adapter.writeFingerings(ctx.jobs[j].seq, ctx.jobs[j].refs, ctx.keep, ctx.range);
+                var r = ctx.adapter.writeFingerings(ctx.jobs[j].seq, ctx.jobs[j].refs, ctx.keep, ctx.range,
+                                                       { compact: ctx.compact });
                 written += r.written;
                 skipped += r.skipped;
                 conflicts += countConflicts(ctx.jobs[j].gen.warnings);
@@ -299,6 +301,18 @@ MuseScore {
                     color: activePalette.windowText
                     leftPadding: keepExisting.indicator.width + keepExisting.spacing
                     verticalAlignment: Text.AlignVCenter
+                }
+            }
+            CheckBox {
+                id: compactRepeats
+                text: qsTr("Repeated notes: write the finger only when it changes")
+                checked: true
+                contentItem: Text {
+                    text: compactRepeats.text
+                    color: activePalette.windowText
+                    leftPadding: compactRepeats.indicator.width + compactRepeats.spacing
+                    verticalAlignment: Text.AlignVCenter
+                    wrapMode: Text.WordWrap
                 }
             }
             CheckBox {
@@ -481,6 +495,12 @@ MuseScore {
             repFifth: 1.0,      // the 5th finger is too weak for repeated-note articulation
             repFastIOI: 0.25,   // inter-onset interval (beats) at or below which a repetition is "fast"
             repSlowIOI: 0.75,   // at or above which it is "slow"
+            // Repeated-note PEDAL: a key repeated in one voice while other notes sound with it (held
+            // notes of another voice, or the repeated key itself inside chords), as in a bass pedal
+            // under a moving or held upper voice. The hand is anchored by the other notes, so the
+            // repeated key keeps its finger unless the repetition is really fast (IOI <= repFastIOI).
+            // repKeep is the cost of leaving the finger of the previous stroke of the pedal.
+            repKeep: 8.0,
 
             // Leaps: beyond leapSemis (M hand) the hand must be repositioned; distance between fingers
             // no longer matters and the landing finger is chosen by what follows.
@@ -970,7 +990,8 @@ MuseScore {
                         uniq.push({
                             pitch: members[i].pitch, start: members[i].start, end: members[i].end,
                             anchor: members[i].anchor || 0, id: members[i].id, dups: [],
-                            keySig: members[i].keySig, staccato: !!members[i].staccato
+                            keySig: members[i].keySig, staccato: !!members[i].staccato,
+                            voice: members[i].voice || 0
                         });
                     }
                 }
@@ -987,7 +1008,7 @@ MuseScore {
                         isChord: chord, chordID: chord ? chordId : 0,
                         chordnr: chord ? j : 0, NinChord: chord ? count : 0,
                         anchor: u.anchor, finger: 0,
-                        keySig: u.keySig, staccato: u.staccato
+                        keySig: u.keySig, staccato: u.staccato, voice: u.voice
                     });
                 }
                 if (count > 1) { chordId += 1; }
@@ -1046,6 +1067,67 @@ MuseScore {
             return ev;
         }
 
+        // Repeated-key chains: successive notes of ONE voice on the same key (a chord member counts,
+        // so a bass pedal that is sometimes struck alone and sometimes with another voice is still
+        // one chain). Sets note.repPrev / note.repNext (sequence indices, -1 if none) and marks
+        // note.repKeep on every note of a chain that is a PEDAL (see repKeep in DEFAULT_PARAMS):
+        // the key is repeated at least three times, not fast, while other notes sound with it.
+        function analyzeRepeatChains(seq, P) {
+            var n = seq.length, i, k;
+            var byVoice = {};
+            for (i = 0; i < n; i++) {
+                var vk = String(seq[i].voice || 0);
+                if (!byVoice[vk]) { byVoice[vk] = []; }
+                byVoice[vk].push(i);
+            }
+            for (var vkey in byVoice) {
+                if (!byVoice.hasOwnProperty(vkey)) { continue; }
+                var idxs = byVoice[vkey];
+                // in one voice, notes of the same onset form a chord; the next stroke of a key is the
+                // first note of that pitch at a later onset, provided no other onset of this voice
+                // intervenes without it
+                var onsets = [], byOnset = {};
+                for (k = 0; k < idxs.length; k++) {
+                    var ok = String(Math.round(seq[idxs[k]].start * 1e6));
+                    if (!byOnset[ok]) { byOnset[ok] = []; onsets.push(ok); }
+                    byOnset[ok].push(idxs[k]);
+                }
+                for (k = 0; k + 1 < onsets.length; k++) {
+                    var cur = byOnset[onsets[k]], nxt = byOnset[onsets[k + 1]];
+                    for (var a = 0; a < cur.length; a++) {
+                        for (var b = 0; b < nxt.length; b++) {
+                            var na = seq[cur[a]], nb = seq[nxt[b]];
+                            if (na.pitch === nb.pitch && nb.start - na.end <= P.lineGap + 1e-6) {
+                                na.repNext = nxt[b];
+                                nb.repPrev = cur[a];
+                            }
+                        }
+                    }
+                }
+            }
+            for (i = 0; i < n; i++) {
+                if (seq[i].repPrev >= 0 || seq[i].repNext < 0) { continue; }
+                var chain = [i];
+                while (seq[chain[chain.length - 1]].repNext >= 0) { chain.push(seq[chain[chain.length - 1]].repNext); }
+                if (chain.length < 3) { continue; }
+                var t0 = seq[chain[0]].start, t1 = seq[chain[chain.length - 1]].end;
+                var minIoi = Infinity, inChord = false, member = {};
+                for (k = 0; k < chain.length; k++) {
+                    member[chain[k]] = true;
+                    if (seq[chain[k]].isChord) { inChord = true; }
+                    if (k > 0) { minIoi = Math.min(minIoi, seq[chain[k]].start - seq[chain[k - 1]].start); }
+                }
+                if (minIoi <= P.repFastIOI + 1e-6) { continue; }
+                var accompanied = inChord;
+                for (k = 0; k < n && !accompanied; k++) {
+                    if (member[k] || seq[k].pitch === seq[i].pitch) { continue; }
+                    if (seq[k].start < t1 - 1e-6 && seq[k].end > t0 + 1e-6) { accompanied = true; }
+                }
+                if (!accompanied) { continue; }
+                for (k = 0; k < chain.length; k++) { seq[chain[k]].repKeep = true; }
+            }
+        }
+
         function analyzeSequence(seq, h) {
             var P = h.params, side = h.side, n = seq.length;
             var guides = [];
@@ -1057,7 +1139,11 @@ MuseScore {
                 seq[i].isPeak = false;
                 seq[i].isValley = false;
                 seq[i].ctx = seq[i].isChord ? "chord" : "free";
+                seq[i].repPrev = -1;
+                seq[i].repNext = -1;
+                seq[i].repKeep = false;
             }
+            analyzeRepeatChains(seq, P);
 
             // claim(): a pattern proposes `finger` for note idx. The most confident proposal wins;
             // a note proposed different fingers by two patterns (typically the junction of two
@@ -1656,6 +1742,7 @@ MuseScore {
             var ioi = nb.start - na.start;
             var fast = (P.repSlowIOI - ioi) / (P.repSlowIOI - P.repFastIOI);
             fast = Math.max(0, Math.min(1, fast));
+            if (na.repKeep && nb.repKeep) { fast = 0; }
             if (fa === fb) { return P.repSame * fast * (nb.repLen >= 3 ? 1 : 0.5); }
             var c = P.repChange * (1 - fast);
             if (fb !== fa - 1) { c += P.repOrder * fast; }
@@ -1692,6 +1779,9 @@ MuseScore {
                     // same comfortable spans as the chord shapes, scaled by hand size.
                     if (fa !== fb) { c += P.wComfort * comfortDev(h, fa, fb, Math.abs(d)); }
                 }
+            } else if (na.pitch === nb.pitch && na.repKeep && nb.repKeep) {
+                // a repeated-note pedal struck alone and then inside a chord (or the reverse)
+                c = P.wRepeat * repetitionCost(h, fa, fb, na, nb);
             } else {
                 c = P.wBio * transitionCost(h, fa, fb, na, nb);
                 // Inside a chord the "time" between members is the artificial stagger of
@@ -2038,6 +2128,20 @@ MuseScore {
                 if (forb[0][nk.finger]) { warnings.push({ id: nk.id, index: idx, reason: "held-released" }); }
             }
 
+            // After a note is committed: on a repeated-note pedal the next stroke of the key should
+            // keep this finger (soft, so a held note or an anchor can still force a change); and a
+            // stroke that repeats the finger of the previous stroke of the same key is marked
+            // showFinger = false, because the fingering is written only where the finger changes.
+            function committed(idx) {
+                var nk = seq[idx];
+                nk.showFinger = !(nk.repPrev >= 0 && seq[nk.repPrev].finger === nk.finger);
+                if (nk.repKeep && nk.repNext >= 0 && nk.finger > 0) {
+                    var nx = seq[nk.repNext];
+                    if (!nx.uc) { nx.uc = [0, 0, 0, 0, 0, 0]; }
+                    for (var f = 1; f <= 5; f++) { if (f !== nk.finger) { nx.uc[f] += h.params.repKeep; } }
+                }
+            }
+
             function step() {
                 if (pos >= n) { finish(); return false; }
                 var idx = pos;
@@ -2048,6 +2152,7 @@ MuseScore {
                 } else if (an.anchor && !an.isChord) {
                     an.finger = an.anchor;
                     checkAnchor(idx);
+                    committed(idx);
                 } else {
                     var res = planWindow(h, seq, idx);
                     stats[res.profile] = (stats[res.profile] || 0) + 1;
@@ -2057,10 +2162,12 @@ MuseScore {
                             if (!nk.isChord || nk.chordID !== an.chordID) { break; }
                             nk.finger = nk.anchor || res.fingers[k];
                             verify(idx + k);
+                            committed(idx + k);
                         }
                     } else {
                         an.finger = res.fingers[0];
                         verify(idx);
+                        committed(idx);
                     }
                 }
                 pos++;
@@ -2303,11 +2410,14 @@ MuseScore {
         // Adds the computed fingerings. range = { from, to } in ticks (to exclusive) or null.
         // Unison groups (same pitch and onset in several voices) get ONE fingering, on the lowest
         // voice. A note whose group already has a fingering is never touched when keepExisting is
-        // on. When replacing, plain finger numbers (1-5) are replaced; groups carrying any other
+        // on. With options.compact, a repeated key played with the same finger as its previous
+        // stroke (showFinger false, set by the core) gets no number: the fingering is written only
+        // on the first stroke and where the finger changes. When replacing, plain finger numbers (1-5) are replaced; groups carrying any other
         // fingering text (e.g. "1-2" substitutions) are left alone and counted as skipped.
         // Returns { written, skipped }.
-        function writeFingerings(seq, refs, keepExisting, range) {
+        function writeFingerings(seq, refs, keepExisting, range, options) {
             var res = { written: 0, skipped: 0 };
+            var compact = !!(options && options.compact);
             for (var i = 0; i < seq.length; i++) {
                 var n = seq[i];
                 if (!(n.finger >= 1 && n.finger <= 5)) { continue; }
@@ -2329,6 +2439,12 @@ MuseScore {
                     if (keepExisting) { continue; }
                     if (custom > 0) { res.skipped++; continue; }
                     for (var e = 0; e < numeric.length; e++) { numeric[e].note.remove(numeric[e].el); }
+                }
+                // compact: same key, same finger as the previous stroke -> the number is written only
+                // on the first stroke (and on the first one inside the selection).
+                if (compact && n.showFinger === false && n.repPrev >= 0) {
+                    var prevRef = refs[seq[n.repPrev].id];
+                    if (!range || prevRef.tick >= range.from) { continue; }
                 }
                 var fingering = api.newElement(api.Element.FINGERING);
                 fingering.text = String(n.finger);
