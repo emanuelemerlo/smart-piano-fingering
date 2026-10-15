@@ -2,12 +2,12 @@
 
 MuseScore plugin that calculates and inserts piano fingering numbers (`1`–`5`) for the right and left hands.
 
-> **Status:** version 2.1.0. The fingering algorithm and the score-reading logic are covered by automated tests in Node, and the plugin itself is run inside MuseScore 4 on Windows, macOS and Linux by the CI (see [Testing](#testing)). It has **not** been validated on every MuseScore release: try it on a copy of your score first.
+> **Status:** version 2.2.0. The fingering algorithm and the score-reading logic are covered by automated tests in Node, and the plugin itself is run inside MuseScore 4 on Windows, macOS and Linux by the CI (see [Testing](#testing)). It has **not** been validated on every MuseScore release: try it on a copy of your score first.
 
 ## Features
 
 - Right-hand and left-hand fingering, on any two staves you choose.
-- Hand-size presets: `XXS`, `XS`, `S`, `M`, `L`, `XL`, `XXL`.
+- Hand profiles based on real hand spans (child 5-8, child 9-12, small hand, woman, man, large hand) or your own measurement, with a separate mobility model for children's hands.
 - Keeps your existing fingerings (and uses them as anchors for the calculation) or replaces them.
 - Repeated notes: the finger number can be written only where the finger changes (on by default).
 - **Selection only** mode: processes just the selected region and staves, plus a few bars of musical context.
@@ -40,7 +40,18 @@ Keep the QML file and the PNG together. If the plugin is not listed, check the p
 
 1. Open the score and launch the plugin.
 2. Set the staff number for the **right hand** and, optionally, the **left hand** (`0` = none).
-3. Choose a **hand size**. Presets are heuristic, not a measured hand model.
+3. Choose your **hand**. Each profile is defined by the span between thumb and little finger, spread as far as possible on a table:
+
+   | profile | span | reaches (with minimal comfort / comfortably) |
+   |---|---|---|
+   | Child, 5-8 years | 14.5 cm | a sixth / a fifth |
+   | Child, 9-12 years | 17 cm | a seventh / a sixth |
+   | Small hand | 19 cm | a seventh (an octave at the edge) / a sixth |
+   | Woman (default) | 20 cm | an octave / a seventh |
+   | Man | 22.5 cm | a ninth / an octave |
+   | Large hand | 24 cm | a tenth / a ninth |
+
+   The spans are those of pianist hand-span surveys (mean adult male 22.6 cm, female 20.1 cm). **Custom...** lets you enter your own span; tick **Child's hand** for a child. A child's hand is not just smaller: the long fingers open less, stretches between 3-4-5 strain sooner, the thumb passage is shorter and harder, and the 5th finger is weaker. The comfortable span of every finger pair, and so the cost of every stretch, follows from the chosen hand. Scale and arpeggio fingerings are the same for every hand.
 4. **Keep existing fingerings**:
    - *on* – existing fingerings are never touched; plain numbers `1`–`5` are used as anchors by the calculation.
    - *off* – plain numbers `1`–`5` are replaced. Notes carrying any other fingering text (for example a substitution such as `1-2`) are left untouched and reported in the final message.
@@ -72,6 +83,11 @@ and only then lets the biomechanical model choose among the musically acceptable
    previous note so that every transition is evaluated, with chords planned as a unit.
    Hard constraints (held notes, chord order and span, your existing fingerings) are relaxed only
    when nothing else works, and any remaining conflict is reported in the final message.
+5. **Hand model** (since 2.2): the chosen hand profile gives, for every pair of fingers, the widest
+   span of a chord and the widest span played without tension. A stretch costs only for the part
+   beyond that comfortable span, so the same passage can be fingered differently for a child, a
+   woman or a man. A key that comes back while the hand stays in place keeps its finger, and a
+   finger that holds a key is never passed over or under.
 
 The rules, their musical rationale and every coefficient are documented in the code
 (`createSmartPianoFingeringCore`); coefficients are collected in `DEFAULT_PARAMS`.
@@ -94,7 +110,7 @@ The rules, their musical rationale and every coefficient are documented in the c
 | `smart-piano-fingering.qml` | Plugin UI, fingering algorithm and MuseScore adapter. |
 | `smart-piano-fingering.png` | Plugin thumbnail referenced by `thumbnailName`. |
 | `docs/README.txt` | User guide (plain text, included in the release ZIP). |
-| `docs/RELEASE-NOTES-2.1.0.md`, `docs/RELEASE-NOTES-2.0.0.md` | User-facing release notes. |
+| `docs/RELEASE-NOTES-2.2.0.md`, `docs/RELEASE-NOTES-2.1.0.md`, `docs/RELEASE-NOTES-2.0.0.md` | User-facing release notes. |
 | `tests/run-tests.js` | Node tests: algorithm, musical reference suite, invariants, score adapter (mock score). |
 | `tests/musical-suite.js` | Reference cases (scales, chromatic, arpeggios, chords, repeated notes, black keys, leaps, held notes, combinations). |
 | `tests/compare-legacy.js` | Compares version 1.1.0 (`tests/legacy/`) with the current algorithm. |

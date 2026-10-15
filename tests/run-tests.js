@@ -300,9 +300,9 @@ function randomPiece(seed, n) {
     return items;
 }
 test("hard constraints hold on 30 random pieces (all sizes, both hands) unless a warning says otherwise", () => {
-    const sizes = ["XXS", "S", "M", "L", "XXL"];
+    const sizes = ["child58", "child912", "small", "woman", "man", "large", { span: 21, child: true }];
     for (let k = 0; k < 30; k++) {
-        const side = k % 2 ? "left" : "right", size = sizes[k % 5];
+        const side = k % 2 ? "left" : "right", size = sizes[k % sizes.length];
         const items = randomPiece(k + 1, 150);
         const seq = core.buildSequence(JSON.parse(JSON.stringify(items)), 0.05);
         core.generate(seq, side, size);
@@ -417,7 +417,7 @@ test("a repeated bass pedal under another voice keeps one finger (5), even throu
     eq(g[0].showFinger, true);
 });
 test("the pedal finger is kept on every hand size", () => {
-    ["XXS", "S", "M", "XL", "XXL"].forEach(size => {
+    ["child58", "child912", "small", "woman", "man", "large"].forEach(size => {
         const seq = core.buildSequence(pedalBars(), 0.05);
         core.generate(seq, "left", size);
         const fs = new Set(seq.filter(n => n.pitch === 43).map(n => n.finger));
@@ -447,6 +447,55 @@ test("compact writing: repeated key with the same finger gets one number; off wr
     refs = mkRefs(); refs[1].note.els.push(fing("3"));
     adapter.writeFingerings(mkSeq(), refs, false, null, { compact: true });
     eq(refs[1].note.els.length, 0);  // an old number on a hidden stroke is removed, not left stale
+});
+
+console.log("Core: hand model (profiles, two spans, mobility)");
+const fingersOf = (items, side, size) => lib.run(core, items, side, size).fingers.join("");
+const warningsOf = (items, side, size) => lib.run(core, items, side, size).warnings.length;
+test("legacy presets map to the profiles; M maps to 'woman' and is still accepted", () => {
+    const map = { XXS: "child58", XS: "child58", S: "child912", M: "woman", L: "man", XL: "large", XXL: "large" };
+    for (let k = 0; k < 6; k++) {
+        const items = randomPiece(100 + k, 80), side = k % 2 ? "left" : "right";
+        Object.keys(map).forEach(old => eq(fingersOf(items, side, old), fingersOf(items, side, map[old]), old + " vs " + map[old]));
+    }
+    eq(core.resolveHand("M").span, 20);
+    eq(core.resolveHand("nonsense").id, "woman");
+    eq(core.sizes.join(","), "child58,child912,small,woman,man,large");
+});
+test("a custom hand of the same span and mobility as a profile gives the same fingering", () => {
+    const items = randomPiece(7, 120);
+    eq(fingersOf(items, "right", { span: 22.5 }), fingersOf(items, "right", "man"));
+    eq(fingersOf(items, "left", { span: 17, child: true }), fingersOf(items, "left", "child912"));
+    ok(core.resolveHand({ span: 99 }).span <= 30 && core.resolveHand({ span: -1 }).span === 20, "custom span clamped");
+});
+test("chord limits follow the measured span: a ninth 1-5 for the man, not for the woman; an octave not for a child 9-12", () => {
+    const ninth = lib.line([["C4", "D5"]], 1), octave = lib.line([["C4", "C5"]], 1);
+    eq(warningsOf(ninth, "right", "man"), 0, "man plays C4-D5");
+    ok(warningsOf(ninth, "right", "woman") > 0, "woman: C4-D5 is reported");
+    eq(warningsOf(octave, "right", "woman"), 0, "woman plays the octave");
+    ok(warningsOf(octave, "right", "child912") > 0, "child 9-12: octave reported");
+    eq(warningsOf(lib.line([["C4", "A4"]], 1), "right", "child58"), 0, "child 5-8 plays a sixth");
+});
+test("the thumb span and the long-finger span scale separately", () => {
+    const man = core.internals.makeHand("right", "man"), woman = core.internals.makeHand("right", "woman");
+    const t = man.thumbScale / woman.thumbScale, f = man.fingerScale / woman.fingerScale;
+    ok(t > 1.1 && f > 1 && f < t, "thumb " + t.toFixed(3) + ", fingers " + f.toFixed(3));
+});
+test("a child's hand is not a scaled adult hand (mobility)", () => {
+    const child = core.internals.makeHand("right", { span: 20, child: true });
+    const adult = core.internals.makeHand("right", { span: 20 });
+    eq(child.thumbScale, adult.thumbScale);
+    ok(child.fingerScale < adult.fingerScale, "less abduction between the long fingers");
+    ok(child.comfortScale < adult.comfortScale, "earlier strain");
+    ok(child.params.weakStretch > adult.params.weakStretch, "4th finger less independent");
+    ok(child.params.crossBase[3] > adult.params.crossBase[3] && child.params.crossReach[3] < adult.params.crossReach[3], "thumb passage");
+    ok(child.weights[5] < adult.weights[5], "weaker 5th finger");
+    const over = core.internals.makeHand("right", { span: 20, child: true }, { params: { weakStretch: 1 } });
+    eq(over.params.weakStretch, 1, "explicit parameters still win over mobility");
+});
+test("canonical scale fingerings do not depend on the hand", () => {
+    const items = lib.line(lib.scalePitches(60, [0, 2, 4, 5, 7, 9, 11], 2), 0.25);
+    core.sizes.forEach(sz => eq(fingersOf(items, "right", sz), "123123412312345", sz));
 });
 
 if (process.argv.includes("--report")) {

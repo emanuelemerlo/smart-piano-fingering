@@ -1,4 +1,4 @@
-SMART PIANO FINGERING 2.1.0
+SMART PIANO FINGERING 2.2.0
 ===========================
 
 Release date: 15 October 2026
@@ -14,23 +14,36 @@ music leaves a real choice does it pick the most comfortable option for your
 hand.
 
 
-WHAT'S NEW IN 2.1.0
+WHAT'S NEW IN 2.2.0
 -------------------
 
-  - Repeated-note pedals keep one finger. A key repeated in one voice while
-    another voice holds or moves (for example the G pedal in the left hand
-    of Tchaikovsky's Morning Prayer, op. 39 no. 1, bars 16-21) is now played
-    with the same finger throughout. Before, the finger could change
-    irregularly from bar to bar.
-  - New option "Repeated notes: write the finger only when it changes"
-    (on by default). When a key is struck again with the same finger, the
-    number is written only on the first note, and again where the finger
-    changes. Switch it off to number every note.
+  - Choose your hand, not a size. The seven presets XXS-XXL are replaced by
+    hand profiles defined by a measured span (thumb to little finger, hand
+    spread flat on a table): child 5-8 years (14.5 cm), child 9-12 (17 cm),
+    small hand (19 cm), woman (20 cm, the default), man (22.5 cm), large
+    hand (24 cm), or Custom with your own measurement. The old presets did
+    not match real hands: "M" was an average woman's hand, a normal adult
+    male hand was closer to "L".
+  - A child's hand is not a smaller adult hand: the long fingers open less,
+    stretches between 3-4-5 strain sooner, the thumb passage is shorter and
+    harder and the fifth finger is weaker. Tick "Child's hand" for a custom
+    child's hand.
+  - Every stretch is judged against what the chosen hand opens comfortably.
+    A man's hand plays 1-3 on a sixth where a child moves the hand.
+  - The hand stays in place when it can. A key that comes back after a few
+    notes keeps its finger: F-C-A-C-A-C in the left hand is 5 3 1 3 1 3,
+    no longer 5 3 1 5 1 4. A repeated chord keeps its fingering.
+  - No thumb on the bass of a left-hand figure (or on the top of a
+    right-hand one) when the other notes lie above it: it forced a thumb
+    passage and its undoing at every bar (1 4 1 ...).
+  - While a finger holds a key, no other finger passes over or under it.
 
-Also included since 2.0.0 (version 2.0.1):
+Also included since 2.0.0 (versions 2.0.1 and 2.1.0):
 
-  - An existing fingering that contradicts a recognised pattern now makes
-    the surrounding notes follow it.
+  - Repeated-note pedals keep one finger, and the option "Repeated notes:
+    write the finger only when it changes" (on by default).
+  - An existing fingering that contradicts a recognised pattern makes the
+    surrounding notes follow it.
   - Broken-chord accompaniments that change harmony every bar keep the same
     hand shape (5-3-1-3) in every bar.
   - Needlessly cramped fingerings (such as 1-4 on a second) are avoided.
@@ -43,11 +56,26 @@ INSTALLATION
    MuseScore plugins folder (for MuseScore 4: Documents/MuseScore4/Plugins/).
    Keep the two files together.
 2. Enable "Smart Piano Fingering" in Home > Plugins.
-3. Open a score, choose the staves for the right and left hand and the hand
-   size, then press Apply.
+3. Open a score, choose the staves for the right and left hand and your hand,
+   then press Apply.
 
 Options in the dialog:
 
+  - Hand: measure the span between thumb and little finger, spread as far as
+    possible on a table, and choose the closest profile. The dialog shows how
+    far the chosen hand reaches.
+
+      profile             span      reaches (minimal comfort / comfortably)
+      -----------------   -------   ---------------------------------------
+      Child, 5-8 years    14.5 cm   a sixth / a fifth
+      Child, 9-12 years   17 cm     a seventh / a sixth
+      Small hand          19 cm     a seventh (an octave at the edge) / a sixth
+      Woman (default)     20 cm     an octave / a seventh
+      Man                 22.5 cm   a ninth / an octave
+      Large hand          24 cm     a tenth / a ninth
+      Custom...           your cm   tick "Child's hand" for a child
+
+    Average spans of adult pianists: men 22.6 cm, women 20.1 cm.
   - Keep existing fingerings: on, the numbers already in the score are kept
     and used by the calculation; off, plain numbers 1-5 are replaced (other
     fingering text, such as 1-2, is never touched).
@@ -143,8 +171,9 @@ Leaps
 Held notes and several voices
 
   - A finger holding a note is never used for another key while the note
-    sounds. For example, a held thumb under a moving upper voice gives
-    1 3 4 5.
+    sounds, and no other finger passes over or under it. For example, a
+    held thumb under a moving upper voice gives 1 3 4 5.
+  - A key that comes back while the hand stays in place keeps its finger.
   - An upper voice is not played with the same finger on two keys in a row.
 
 
@@ -165,10 +194,11 @@ TECHNIQUE BUILT IN
         4 on Bb in F major.
   - The fifth finger is kept for the outer notes of the hand rather than for
     notes inside a phrase.
-  - Hand size affects chords, stretches and arpeggios, but never the
-    standard scale fingerings, which are the same for every hand. With a
-    very small hand the plugin may choose a narrower chord shape or an
-    arpeggio variant.
+  - The hand you choose decides how wide a chord can be and how much every
+    stretch costs, but never the standard scale and arpeggio fingerings,
+    which are the same for every hand. With a child's hand the plugin may
+    choose a narrower chord shape or move the hand where an adult would
+    stretch.
 
 
 YOUR OWN FINGERINGS COME FIRST
@@ -180,8 +210,8 @@ them.
 
 If an existing fingering is physically impossible, the final message tells
 you how many places need a look. The same happens when the score asks for
-something no hand can do, for example a chord wider than the selected hand
-size, or a note that would have to be held by a finger needed elsewhere. The
+something no hand can do, for example a chord wider than the selected hand,
+or a note that would have to be held by a finger needed elsewhere. The
 plugin no longer hides these situations.
 
 
@@ -211,7 +241,7 @@ GOOD TO KNOW
 QUALITY
 -------
 
-The fingerings were checked against a reference set of more than 300
+The fingerings were checked against a reference set of more than 310
 standard cases taken from the piano method books: all scales in all keys and
 forms, chromatic scales, arpeggios and their inversions, chords, repeated
 notes, black-key situations, leaps, held notes and combinations such as
@@ -230,7 +260,7 @@ Please report fingerings that look unnatural on the issue tracker:
 
 Include:
   - the passage (a screenshot or a small score);
-  - the hand and hand size used;
+  - the hand (right/left) and the hand profile used;
   - the fingering you would expect.
 
 These reports are the most useful way to improve the plugin.
