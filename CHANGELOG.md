@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **Hand position memory.** A key that comes back after one or a few other notes while the hand
+  stays in place keeps its finger. Before, every pair of notes was optimised on its own, so in
+  broken-chord accompaniments the same key changed finger inside one bar: F2-C3-A3-C3-A3-C3 in the
+  left hand came out `5 3 1 5 1 4` and then `1 4 1 5 1 4` (*Venezia*, Saroglia/Martellotta, bars
+  19-21); now `5 3 1 3 1 3`. A repeated chord also keeps its fingering (a common tone between two
+  different chords may still change finger, e.g. IV -> V7).
+- **No thumb on the bottom of a left-hand figure** (top of a right-hand one) when its neighbours lie
+  on the fingers' side: it forced a thumb passage and its undoing at every bar (`1 4 1 …` on
+  F2-C3-A3). The outer finger is used instead, also on a final bass reached by a leap.
+- Thumb passages into or out of a chord are now costed like any other thumb passage, and a crossing
+  of two long fingers between a note and a chord costs more (`chordCrossing` 6 -> 10).
+- A key still held when the next one is struck no longer allows a crossing of long fingers at a
+  change of accompaniment figure (the hand cannot reposition while it holds a key).
+
+### Changed
+- Stretches of the 4th finger with its neighbours (3-4, 4-5) cost twice as much as other
+  stretches (`weakStretch`): 5-4 on a fifth is no longer preferred to 3-1 on a sixth.
+- New parameters `recurKeep`, `recurNotes`, `recurSpan`, `recurBeats`, `recurMove`, `thumbTurn`,
+  `thumbTurnSemis`, `outerTurn`, `weakStretch`.
+- Reference suite: new group *M. Hand position* (5 cases); golden files `rich-notation`,
+  `scale4-XXS` and `stress` regenerated with MuseScore 4.7.5 (the changes are returning keys that
+  now keep their finger).
+
 ## [2.1.0] - 2026-10-15
 
 ### Added
