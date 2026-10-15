@@ -51,7 +51,7 @@ Keep the QML file and the PNG together. If the plugin is not listed, check the p
    | Man | 22.5 cm | a ninth / an octave |
    | Large hand | 24 cm | a tenth / a ninth |
 
-   The spans are those of pianist hand-span surveys (mean adult male 22.6 cm, female 20.1 cm). **Custom...** lets you enter your own span; tick **Child's hand** for a child. A child's hand is not just smaller: the long fingers open less, stretches between 3-4-5 strain sooner, the thumb passage is shorter and harder, and the 5th finger is weaker. The default *Woman* profile gives exactly the results of the former `M` preset. Scale and arpeggio fingerings are the same for every hand.
+   The spans are those of pianist hand-span surveys (mean adult male 22.6 cm, female 20.1 cm). **Custom...** lets you enter your own span; tick **Child's hand** for a child. A child's hand is not just smaller: the long fingers open less, stretches between 3-4-5 strain sooner, the thumb passage is shorter and harder, and the 5th finger is weaker. The comfortable span of every finger pair, and so the cost of every stretch, follows from the chosen hand. Scale and arpeggio fingerings are the same for every hand.
 4. **Keep existing fingerings**:
    - *on* – existing fingerings are never touched; plain numbers `1`–`5` are used as anchors by the calculation.
    - *off* – plain numbers `1`–`5` are replaced. Notes carrying any other fingering text (for example a substitution such as `1-2`) are left untouched and reported in the final message.
