@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- Documentation aligned with 2.0.1: version in the README status, the README file list and testing
+  section now include the MuseScore runtime tests and the QML checks, and the release notes no
+  longer say that testing was done only outside MuseScore.
+- `tests/compare-legacy.js` labels the current algorithm with the version declared in the plugin
+  instead of a fixed "2.0.0"; `tests/COMPARISON.md` regenerated (306 cases).
+
+### Fixed
+- Case count in the 2.0.0 entry below (305, not 302).
+
 ## [2.0.1] - 2026-10-15
 
 ### Fixed
@@ -25,7 +37,7 @@ All notable changes to this project are documented here. The format follows
 - **New fingering algorithm** (hybrid musical + biomechanical). The music is analysed first;
   recognised patterns impose or suggest the standard fingering, the biomechanical model chooses
   among acceptable fingerings. Results differ from 1.1.0 on most passages (see
-  `tests/COMPARISON.md`: 77/302 reference cases passed with 1.1.0, 302/302 with 2.0.0).
+  `tests/COMPARISON.md`: 77/305 reference cases passed with 1.1.0, 305/305 with 2.0.0).
 - Chords are planned as a unit inside the search; the post-processing step
   (`enforceChordConsistency`) is gone, so no transition of the result is left unevaluated.
 - Each search window now includes the previous (already fingered) note.
