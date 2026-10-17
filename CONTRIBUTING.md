@@ -2,6 +2,10 @@
 
 Thank you for helping improve Smart Piano Fingering.
 
+This project follows a [Code of Conduct](CODE_OF_CONDUCT.md). By taking part you agree to respect it.
+
+To report a fingering that looks unnatural, open an issue with the **Unnatural fingering** template: it asks for the passage, the hand, the hand profile and the fingering you would expect.
+
 ## Ground rules
 
 - The plugin is a single QML file with an embedded JavaScript core (`createSmartPianoFingeringCore`) and a MuseScore adapter (`createMuseScoreAdapter`). Keep them free of UI dependencies so they stay testable in Node.

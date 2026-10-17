@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) and an **Unnatural fingering** issue template.
+
 ## [2.2.0] - 2026-10-15
 
 ### Added

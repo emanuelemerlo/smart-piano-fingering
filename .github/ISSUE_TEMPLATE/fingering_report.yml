@@ -1,0 +1,76 @@
+name: Unnatural fingering
+description: The plugin wrote a fingering a pianist would not use
+title: "[Fingering]: "
+labels: [fingering]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! Reports like this one are the most useful way to improve the plugin.
+        A short passage (a few bars) is enough. Please do not upload copyrighted or private scores without permission.
+  - type: textarea
+    id: passage
+    attributes:
+      label: Passage
+      description: Attach a screenshot or a small score (.mscz), or write the notes (for example C4 D4 E4 F4 G4, eighth notes).
+    validations:
+      required: true
+  - type: dropdown
+    id: hand
+    attributes:
+      label: Hand
+      options:
+        - Right hand
+        - Left hand
+        - Both hands
+    validations:
+      required: true
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Hand profile
+      options:
+        - Child, 5-8 years (14.5 cm)
+        - Child, 9-12 years (17 cm)
+        - Small hand (19 cm)
+        - Woman (20 cm)
+        - Man (22.5 cm)
+        - Large hand (24 cm)
+        - Custom (write the span below)
+    validations:
+      required: true
+  - type: input
+    id: plugin_output
+    attributes:
+      label: Fingering written by the plugin
+      placeholder: e.g. 1 2 3 4 1 2 3
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: Fingering you would expect
+      placeholder: e.g. 1 2 3 1 2 3 4
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: Why
+      description: Optional. The rule, method book or teaching practice behind your fingering, or why the plugin's one is awkward.
+    validations:
+      required: false
+  - type: checkboxes
+    id: settings
+    attributes:
+      label: Settings
+      options:
+        - label: "\"Keep existing fingerings\" was on"
+        - label: Only a selection was fingered
+  - type: input
+    id: versions
+    attributes:
+      label: Plugin and MuseScore version
+      placeholder: e.g. plugin 2.2.0, MuseScore 4.x.y
+    validations:
+      required: true
