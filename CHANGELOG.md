@@ -8,6 +8,17 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) and an **Unnatural fingering** issue template.
+- **Release workflow** (`.github/workflows/release.yml`): pushing a tag `vX.Y.Z` checks that the
+  version is the same in the QML file, `docs/README.txt` and `CHANGELOG.md`, runs the Node and
+  MuseScore tests on Windows, macOS and Linux, and publishes the GitHub release with
+  `musescore-smart-piano-fingering-vX.Y.Z.zip` (`README.txt`, `LICENSE.txt` and the
+  `smart-piano-fingering` folder with the QML file and its thumbnail). The release text is the
+  CHANGELOG section of the version. The package is built by `.github/scripts/build-release.sh`,
+  which can also be run locally.
+
+### Changed
+- The cross-platform test workflow runs on branch pushes and pull requests; for version tags it is
+  run by the release workflow.
 
 ## [2.2.0] - 2026-10-15
 

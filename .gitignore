@@ -11,3 +11,6 @@ Thumbs.db
 *.log
 *.tmp
 *.bak
+
+# Release package built by .github/scripts/build-release.sh
+dist/

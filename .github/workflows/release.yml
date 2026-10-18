@@ -1,0 +1,111 @@
+name: Release
+
+# Publishes a GitHub release with the plugin package:
+#
+#   musescore-smart-piano-fingering-vX.Y.Z.zip
+#       README.txt        release notes + user guide (docs/README.txt)
+#       LICENSE.txt
+#       smart-piano-fingering/smart-piano-fingering.qml
+#       smart-piano-fingering/smart-piano-fingering.png
+#
+# How to release (see RELEASE_CHECKLIST.md):
+#   git tag v2.3.0 && git push origin v2.3.0
+# The tag must match the version in the QML file, in docs/README.txt and in CHANGELOG.md.
+# The release is published only if the Node tests and the MuseScore tests on Windows, macOS
+# and Linux pass. The release notes come from the CHANGELOG section of the version.
+#
+# "Run workflow" (manual) rebuilds the package of an existing tag. If its release already
+# exists, only the ZIP is replaced; the text of the release is left as it is.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release (e.g. v2.3.0)
+        required: true
+        type: string
+      draft:
+        description: Create the release as a draft
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  # Same build and checks as the release job, run first so that a version mismatch
+  # fails in seconds instead of after the MuseScore tests.
+  check:
+    name: Check version and package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+
+      - name: Build package
+        run: .github/scripts/build-release.sh "$TAG" dist
+
+  tests:
+    name: Tests
+    needs: check
+    uses: ./.github/workflows/multiplatform.yml
+    with:
+      ref: ${{ inputs.tag || github.ref_name }}
+
+  release:
+    name: Publish release
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ inputs.tag || github.ref_name }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0   # tags, for the "Full changelog" link
+
+      - name: Build package
+        id: build
+        run: .github/scripts/build-release.sh "$TAG" dist
+
+      - name: Keep the package as a workflow artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: musescore-smart-piano-fingering-${{ steps.build.outputs.tag }}
+          path: |
+            ${{ steps.build.outputs.zip }}
+            ${{ steps.build.outputs.notes }}
+
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZIP: ${{ steps.build.outputs.zip }}
+          NOTES: ${{ steps.build.outputs.notes }}
+          VERSION: ${{ steps.build.outputs.version }}
+          DRAFT: ${{ inputs.draft && 'true' || 'false' }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG exists: replacing the package only."
+            gh release upload "$TAG" "$ZIP" --clobber
+          else
+            args=(--title "Smart Piano Fingering $TAG" --notes-file "$NOTES" --verify-tag)
+            if [ "$DRAFT" = "true" ]; then args+=(--draft); fi
+            gh release create "$TAG" "$ZIP" "${args[@]}"
+          fi
+          echo "### Smart Piano Fingering $TAG" >> "$GITHUB_STEP_SUMMARY"
+          echo "Package: \`$(basename "$ZIP")\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "$(gh release view "$TAG" --json url --jq .url)" >> "$GITHUB_STEP_SUMMARY"

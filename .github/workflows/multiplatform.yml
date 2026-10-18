@@ -2,8 +2,18 @@ name: Smart Piano Fingering - Cross-platform tests
 
 on:
   push:
+    # Branches only: a version tag runs these tests through the Release workflow.
+    branches: ['**']
   pull_request:
   workflow_dispatch:
+  # Called by release.yml before a release is published.
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to test (empty = the ref of the triggering event)
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -38,6 +48,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
