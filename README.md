@@ -120,12 +120,13 @@ The rules, their musical rationale and every coefficient are documented in the c
 | `tests/REPORT.md`, `tests/COMPARISON.md` | Generated test tables. |
 | `CHANGELOG.md` | Release history. |
 | `RELEASE_CHECKLIST.md` | Steps to follow before tagging a release. |
+| `.github/scripts/build-release.sh` | Builds the release ZIP and the release notes (used by the release workflow, runnable locally). |
 | `LICENSE` | GNU General Public License v3.0. |
 | `THIRD_PARTY_NOTICES.md` | Attribution for the algorithm's origin. |
 | `AUTHORS.md` | Authors and attribution. |
 | `CONTRIBUTING.md` | Contribution and validation guidance. |
 | `SECURITY.md` | Responsible reporting guidance. |
-| `.github/` | Issue/PR templates and the CI workflows (repository checks; cross-platform tests in MuseScore). |
+| `.github/` | Issue/PR templates and the CI workflows (repository checks; cross-platform tests in MuseScore; release on a `vX.Y.Z` tag). |
 
 ## Testing
 
