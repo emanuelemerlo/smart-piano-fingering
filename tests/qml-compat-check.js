@@ -103,5 +103,75 @@ if (qmlVersion && fs.existsSync(changelogPath)) {
     check(first === qmlVersion, `latest released CHANGELOG entry (${first}) matches the QML version (${qmlVersion})`);
 }
 
+// ---- localisation: every language table has every UI string, with the same placeholders
+console.log("\nLocalisation checks");
+
+// Source of a QML function "function <name>(...) { ... }" (braces inside strings are skipped).
+function functionSource(name) {
+    const start = src.indexOf("    function " + name + "(");
+    if (start < 0) { return null; }
+    let i = src.indexOf("{", start), depth = 0;
+    for (; i < src.length; i++) {
+        const c = src[i];
+        if (c === '"' || c === "'") {
+            const q = c;
+            i++;
+            while (i < src.length && src[i] !== q) { i += src[i] === "\\" ? 2 : 1; }
+        } else if (c === "{") {
+            depth++;
+        } else if (c === "}" && --depth === 0) {
+            return src.slice(start, i + 1);
+        }
+    }
+    return null;
+}
+
+const tableSrc = functionSource("translationTable");
+const normSrc = functionSource("normalizeLanguage");
+check(!!tableSrc && !!normSrc, "translationTable() and normalizeLanguage() found");
+if (tableSrc && normSrc) {
+    const i18n = new Function(tableSrc + "\n" + normSrc +
+        "\nreturn { table: translationTable, normalize: normalizeLanguage };")();
+
+    // UI strings: the literal arguments of tr("...") in the dialog part of the file.
+    const ui = src.slice(0, src.indexOf("function createSmartPianoFingeringCore()"));
+    const keys = new Set();
+    const re = /\btr\("((?:[^"\\]|\\.)*)"\)/g;
+    let m;
+    while ((m = re.exec(ui)) !== null) { keys.add(JSON.parse('"' + m[1] + '"')); }
+    check(keys.size >= 40, `found the UI strings (${keys.size})`);
+    check(!/qsTr\((?!"Smart Piano Fingering"\))/.test(ui.replace(/\/\/.*$/gm, "")),
+        "the dialog uses tr() (qsTr() only for the plugin title)");
+
+    const langs = Array.from(new Set((tableSrc.match(/case "([A-Za-z_]+)":/g) || [])
+        .map(c => c.slice(6, -2))));
+    check(langs.length >= 20, `language tables: ${langs.join(", ")}`);
+    const placeholders = s => (s.match(/%\d/g) || []).sort().join(",");
+    for (const lang of langs) {
+        const t = i18n.table(lang) || {};
+        const missing = [...keys].filter(k => typeof t[k] !== "string" || !t[k].trim());
+        const extra = Object.keys(t).filter(k => !keys.has(k));
+        const badArgs = [...keys].filter(k => typeof t[k] === "string" && placeholders(t[k]) !== placeholders(k));
+        check(!missing.length && !extra.length && !badArgs.length,
+            `${lang}: ${keys.size} strings` +
+            (missing.length ? `; missing: ${missing.join(" | ")}` : "") +
+            (extra.length ? `; not used in the dialog: ${extra.join(" | ")}` : "") +
+            (badArgs.length ? `; placeholders differ: ${badArgs.join(" | ")}` : ""));
+    }
+    check(i18n.table("en") === null && i18n.table("xx") === null, "no table for English or unknown codes");
+
+    // Locale names as MuseScore 3/4 pass them to QLocale (Qt.locale().name) -> table used
+    const cases = {
+        "it_IT": "it", "de_AT": "de", "pt_BR": "pt", "pt_PT": "pt", "es-419": "es", "nn_NO": "nb",
+        "nb_NO": "nb", "zh_CN": "zh_CN", "zh_SG": "zh_CN", "zh_TW": "zh_TW", "zh_HK": "zh_TW",
+        "zh_Hant_TW": "zh_TW", "ja_JP": "ja", "en_GB": "en", "en_US": "en", "ko_KR": "", "C": "", "": "",
+    };
+    for (const name of Object.keys(cases)) {
+        const got = i18n.normalize(name);
+        check(got === cases[name], `locale "${name}" -> "${cases[name] || "(English fallback)"}"` +
+            (got === cases[name] ? "" : ` (got "${got}")`));
+    }
+}
+
 console.log(failed ? `\n${failed} check(s) failed` : "\nAll QML compatibility checks passed.");
 process.exit(failed ? 1 : 0);

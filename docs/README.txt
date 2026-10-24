@@ -236,6 +236,10 @@ GOOD TO KNOW
   - The calculation may take a few seconds on long scores. The dialog shows
     progress, and Stop writes nothing.
   - One undo (Ctrl+Z / Cmd+Z) removes everything the plugin wrote.
+  - The dialog speaks the language of MuseScore (English, most European
+    languages, Chinese and Japanese; other languages fall back to English).
+    The plugin version is shown in its top-right corner: please mention it
+    when you report a problem.
 
 
 QUALITY
