@@ -24,7 +24,7 @@ import MuseScore 3.0
 
 MuseScore {
     version: "2.2.0"
-    description: qsTr("Inserts piano fingering (1-5) for the right and left hand into the open score.")
+    description: tr("Inserts piano fingering (1-5) for the right and left hand into the open score.")
     menuPath: "Plugins.SmartPianoFingering"   // MuseScore 3 only; ignored by MuseScore 4
     title: "Smart Piano Fingering"
     categoryCode: "Piano fingering"
@@ -35,6 +35,7 @@ MuseScore {
     height: 500
 
     Component.onCompleted: {
+        versionLabel.text = tr("Version %1").arg(version);
         if (mscoreMajorVersion > 4 || (mscoreMajorVersion === 4 && mscoreMinorVersion >= 4)) {
             title = qsTr("Smart Piano Fingering");
             categoryCode = "composing-arranging-tools";
@@ -43,13 +44,13 @@ MuseScore {
 
     // Hand profiles (ids of HAND_PROFILES in the core) and the custom hand, in dialog order.
     property var handProfiles: [
-        { id: "child58",  text: qsTr("Child, 5-8 years (14.5 cm)"), span: 14.5, child: true },
-        { id: "child912", text: qsTr("Child, 9-12 years (17 cm)"),  span: 17.0, child: true },
-        { id: "small",    text: qsTr("Small hand (19 cm)"),         span: 19.0, child: false },
-        { id: "woman",    text: qsTr("Woman (20 cm)"),              span: 20.0, child: false },
-        { id: "man",      text: qsTr("Man (22.5 cm)"),              span: 22.5, child: false },
-        { id: "large",    text: qsTr("Large hand (24 cm)"),         span: 24.0, child: false },
-        { id: "custom",   text: qsTr("Custom..."),                  span: 0,    child: false }
+        { id: "child58",  text: tr("Child, 5-8 years (14.5 cm)"), span: 14.5, child: true },
+        { id: "child912", text: tr("Child, 9-12 years (17 cm)"),  span: 17.0, child: true },
+        { id: "small",    text: tr("Small hand (19 cm)"),         span: 19.0, child: false },
+        { id: "woman",    text: tr("Woman (20 cm)"),              span: 20.0, child: false },
+        { id: "man",      text: tr("Man (22.5 cm)"),              span: 22.5, child: false },
+        { id: "large",    text: tr("Large hand (24 cm)"),         span: 24.0, child: false },
+        { id: "custom",   text: tr("Custom..."),                  span: 0,    child: false }
     ]
     property bool hasSelection: false
     property bool busy: false
@@ -93,7 +94,7 @@ MuseScore {
         lhStaff.value = n >= 2 ? 2 : 0;
         hasSelection = selectionRange() !== null;
         onlySelection.checked = hasSelection;
-        status.text = n === 0 ? qsTr("No open score found.") : qsTr("Staves in score: ") + n;
+        status.text = n === 0 ? tr("No open score found.") : tr("Staves in score: %1").arg(n);
     }
 
     // ---------------------------------------------------------------- run control
@@ -117,7 +118,7 @@ MuseScore {
         }
         runCtx = null;
         busy = false;
-        status.text = qsTr("Error: ") + err;
+        status.text = tr("Error: %1").arg(err);
         console.log("SmartPianoFingering error: " + err + (err && err.stack ? "\n" + err.stack : ""));
     }
 
@@ -132,8 +133,8 @@ MuseScore {
     // about 2.5 cm is the widest white-key interval played with minimal comfort - the limit the
     // plugin plans chords with; minus about 5 cm, the widest one played without tension).
     function handReach(span) {
-        var names = [qsTr("a fourth"), qsTr("a fifth"), qsTr("a sixth"), qsTr("a seventh"), qsTr("an octave"),
-                     qsTr("a ninth"), qsTr("a tenth"), qsTr("an eleventh")];
+        var names = [tr("a fourth"), tr("a fifth"), tr("a sixth"), tr("a seventh"), tr("an octave"),
+                     tr("a ninth"), tr("a tenth"), tr("an eleventh")];
         var cm = [7.1, 9.4, 11.8, 14.1, 16.5, 18.9, 21.2, 23.6];
         function widest(x) {
             var r = -1;
@@ -142,14 +143,14 @@ MuseScore {
         }
         // same formula as the core's chord limits (SPAN_OFFSET; 17.425 cm = 1-5 limit at 20 cm)
         var mx = widest((span - 2.5) * 17.425 / 17.5), cf = widest(span - 5.0);
-        if (mx < 0) { return qsTr("Reaches less than a fourth."); }
-        if (cf < 0) { return qsTr("Reaches %1 at most.").arg(names[mx]); }
-        return qsTr("Reaches %1 at most, %2 comfortably.").arg(names[mx]).arg(names[cf]);
+        if (mx < 0) { return tr("Reaches less than a fourth."); }
+        if (cf < 0) { return tr("Reaches %1 at most.").arg(names[mx]); }
+        return tr("Reaches %1 at most, %2 comfortably.").arg(names[mx]).arg(names[cf]);
     }
 
     function applyFingering() {
         if (busy) { return; }
-        if (!curScore) { status.text = qsTr("No open score found."); return; }
+        if (!curScore) { status.text = tr("No open score found."); return; }
         try {
             var core = createSmartPianoFingeringCore();
             var adapter = createMuseScoreAdapter({
@@ -163,7 +164,7 @@ MuseScore {
             var range = null;
             if (onlySelection.checked) {
                 range = selectionRange();   // re-read now: the dialog is non-modal
-                if (!range) { status.text = qsTr("No range selection found."); return; }
+                if (!range) { status.text = tr("No range selection found."); return; }
             }
 
             var hands = [["right", rhStaff.value - 1], ["left", lhStaff.value - 1]];
@@ -174,17 +175,17 @@ MuseScore {
                 if (idx < 0) { continue; }
                 if (h === 1 && idx === hands[0][1]) { continue; }
                 if (range && (idx < range.staffFrom || idx >= range.staffTo)) {
-                    notes.push(qsTr("staff ") + (idx + 1) + qsTr(" is outside the selection"));
+                    notes.push(tr("staff %1 is outside the selection").arg(idx + 1));
                     continue;
                 }
                 if (!adapter.isPitchedStaff(idx)) {
-                    notes.push(qsTr("staff ") + (idx + 1) + qsTr(" is a percussion staff"));
+                    notes.push(tr("staff %1 is a percussion staff").arg(idx + 1));
                     continue;
                 }
                 targets.push({ side: hands[h][0], idx: idx });
             }
             if (!targets.length) {
-                status.text = qsTr("Nothing to do") + (notes.length ? " (" + notes.join("; ") + ")" : "") + ".";
+                status.text = notes.length ? tr("Nothing to do (%1).").arg(notes.join("; ")) : tr("Nothing to do.");
                 return;
             }
 
@@ -209,14 +210,14 @@ MuseScore {
                 jobs.push({ seq: seq, refs: d.refs, gen: core.createGenerator(seq, targets[k].side, size) });
                 total += seq.length;
             }
-            if (!jobs.length) { status.text = qsTr("No notes found."); return; }
+            if (!jobs.length) { status.text = tr("No notes found."); return; }
 
             runCtx = { adapter: adapter, keep: keep, range: range, jobs: jobs,
                        compact: compactRepeats.checked,
                        jobIndex: 0, done: 0, total: total, notes: notes };
             cancelRequested = false;
             progress.value = 0;
-            status.text = qsTr("Calculating...");
+            status.text = tr("Calculating...");
             busy = true;
             worker.start();
         } catch (err) {
@@ -228,8 +229,8 @@ MuseScore {
         if (!runCtx) { worker.stop(); return; }
         try {
             if (cancelRequested) {
-                failRun(qsTr("stopped by user"));
-                status.text = qsTr("Stopped. Nothing was written.");
+                failRun(tr("stopped by user"));
+                status.text = tr("Stopped. Nothing was written.");
                 return;
             }
             var t0 = Date.now();
@@ -284,10 +285,10 @@ MuseScore {
             failRun(err);
             return;
         }
-        var msg = qsTr("Done: ") + written + qsTr(" fingerings inserted (undo with Ctrl+Z).");
-        if (skipped > 0) { msg += " " + skipped + qsTr(" note(s) with custom fingerings left untouched."); }
+        var msg = tr("Done: %1 fingerings inserted (undo with Ctrl+Z).").arg(written);
+        if (skipped > 0) { msg += " " + tr("%1 note(s) with custom fingerings left untouched.").arg(skipped); }
         if (conflicts > 0) {
-            msg += " " + conflicts + qsTr(" place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.");
+            msg += " " + tr("%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.").arg(conflicts);
         }
         if (ctx.notes.length) { msg += " (" + ctx.notes.join("; ") + ")"; }
         runCtx = null;
@@ -304,11 +305,37 @@ MuseScore {
             anchors.margins: 16
             spacing: 10
 
-            Label { 
-                text: qsTr("Smart Piano Fingering");
-                font.bold: true; 
-                font.pixelSize: 16; 
-                color: activePalette.windowText 
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Label {
+                    text: "Smart Piano Fingering"
+                    font.bold: true
+                    font.pixelSize: 16
+                    color: activePalette.windowText
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                }
+
+                // Plugin version, always visible (handy when reporting an issue)
+                Rectangle {
+                    id: versionBadge
+                    color: activePalette.highlight
+                    radius: 4
+                    implicitWidth: versionLabel.implicitWidth + 12
+                    implicitHeight: versionLabel.implicitHeight + 4
+                    Layout.alignment: Qt.AlignVCenter
+
+                    Label {
+                        id: versionLabel
+                        anchors.centerIn: parent
+                        // set in Component.onCompleted: "version" has no change signal
+                        text: ""
+                        font.bold: true
+                        color: activePalette.highlightedText
+                    }
+                }
             }
 
             GridLayout {
@@ -317,13 +344,13 @@ MuseScore {
                 rowSpacing: 8
                 Layout.fillWidth: true
 
-                Label { text: qsTr("Right hand: staff"); color: activePalette.windowText }
+                Label { text: tr("Right hand: staff"); color: activePalette.windowText }
                 SpinBox { id: rhStaff; from: 1; to: 2; value: 1; editable: true }
 
-                Label { text: qsTr("Left hand: staff (0 = none)"); color: activePalette.windowText }
+                Label { text: tr("Left hand: staff (0 = none)"); color: activePalette.windowText }
                 SpinBox { id: lhStaff; from: 0; to: 2; value: 2; editable: true }
 
-                Label { text: qsTr("Hand"); color: activePalette.windowText }
+                Label { text: tr("Hand"); color: activePalette.windowText }
                 ComboBox {
                     id: sizeBox
                     model: handProfiles
@@ -333,7 +360,7 @@ MuseScore {
                 }
 
                 Label {
-                    text: qsTr("Span thumb - little finger (cm)")
+                    text: tr("Span thumb - little finger (cm)")
                     color: activePalette.windowText
                     visible: sizeBox.currentIndex === handProfiles.length - 1
                 }
@@ -348,13 +375,15 @@ MuseScore {
 
             CheckBox {
                 id: childHand
-                text: qsTr("Child's hand (less mobility)")
+                Layout.fillWidth: true
+                text: tr("Child's hand (less mobility)")
                 visible: sizeBox.currentIndex === handProfiles.length - 1
                 contentItem: Text {
                     text: childHand.text
                     color: activePalette.windowText
                     leftPadding: childHand.indicator.width + childHand.spacing
                     verticalAlignment: Text.AlignVCenter
+                    wrapMode: Text.WordWrap
                 }
             }
 
@@ -371,20 +400,23 @@ MuseScore {
                 }
             }
 
-			CheckBox {
+            CheckBox {
                 id: keepExisting
-                text: qsTr("Keep existing fingerings")
+                Layout.fillWidth: true
+                text: tr("Keep existing fingerings")
                 checked: true
                 contentItem: Text {
                     text: keepExisting.text
                     color: activePalette.windowText
                     leftPadding: keepExisting.indicator.width + keepExisting.spacing
                     verticalAlignment: Text.AlignVCenter
+                    wrapMode: Text.WordWrap
                 }
             }
             CheckBox {
                 id: compactRepeats
-                text: qsTr("Repeated notes: write the finger only when it changes")
+                Layout.fillWidth: true
+                text: tr("Repeated notes: write the finger only when it changes")
                 checked: true
                 contentItem: Text {
                     text: compactRepeats.text
@@ -396,13 +428,15 @@ MuseScore {
             }
             CheckBox {
                 id: onlySelection
-                text: qsTr("Selection only")
+                Layout.fillWidth: true
+                text: tr("Selection only")
                 enabled: hasSelection
                 contentItem: Text {
                     text: onlySelection.text
                     color: onlySelection.enabled ? activePalette.windowText : disabledPalette.text
                     leftPadding: onlySelection.indicator.width + onlySelection.spacing
                     verticalAlignment: Text.AlignVCenter
+                    wrapMode: Text.WordWrap
                 }
             }
 
@@ -426,12 +460,1019 @@ MuseScore {
             RowLayout {
                 Layout.alignment: Qt.AlignRight
                 spacing: 8
-                Button { text: qsTr("Stop"); visible: busy; onClicked: cancelRequested = true }
-                Button { text: qsTr("Close"); onClicked: quit() }
-                Button { text: qsTr("Apply"); enabled: !busy; highlighted: true; onClicked: applyFingering() }
+                Button { text: tr("Stop"); visible: busy; onClicked: cancelRequested = true }
+                Button { text: tr("Close"); onClicked: quit() }
+                Button { text: tr("Apply"); enabled: !busy; highlighted: true; onClicked: applyFingering() }
             }
         }
     }
+
+    // ---------------------------------------------------------------- localisation
+    // The dialog follows the language of MuseScore's interface: MuseScore 3 and 4 both pass it to
+    // QLocale::setDefault(), so Qt.locale() returns it inside the plugin. Languages without a table
+    // below, and strings missing from a table, fall back to English (the keys themselves).
+    // The tables are embedded so the plugin stays a single QML file; tests/qml-compat-check.js
+    // checks that every language has every string and keeps the %1/%2 placeholders.
+    // To add a language: copy one table, translate the values, add its code to the switch.
+
+    // Test hook: a language code ("en", "it", "zh_CN", ...) that overrides the detection.
+    property string languageOverride: ""
+
+    // Supported language for a locale name ("it_IT", "pt-BR", "zh_Hant_TW", "nn_NO"), or "".
+    function normalizeLanguage(name) {
+        var n = String(name || "").replace(/-/g, "_").toLowerCase();
+        var lang = n.split("_")[0];
+        if (lang === "zh") { return /_(tw|hk|mo|hant)(_|$)/.test(n) ? "zh_TW" : "zh_CN"; }
+        if (lang === "no" || lang === "nn") { lang = "nb"; }
+        if (lang === "en") { return "en"; }
+        return translationTable(lang) ? lang : "";
+    }
+
+    function uiLanguage() {
+        if (languageOverride) { return languageOverride; }
+        var names = [];
+        try { names.push(Qt.locale().name); } catch (e) { }
+        try { if (Qt.uiLanguage) { names.push(Qt.uiLanguage); } } catch (e2) { }
+        for (var i = 0; i < names.length; i++) {
+            var code = normalizeLanguage(names[i]);
+            if (code) { return code; }
+        }
+        return "en";
+    }
+
+    // Translates an English UI string; use .arg() for %1, %2 afterwards.
+    function tr(text) {
+        var table = translationTable(uiLanguage());
+        var t = table ? table[text] : undefined;
+        return (typeof t === "string" && t.length) ? t : text;
+    }
+
+    function translationTable(lang) {
+        switch (lang) {
+        case "de": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Fügt Klavierfingersätze (1-5) für die rechte und linke Hand in die geöffnete Partitur ein.",
+            "Child, 5-8 years (14.5 cm)": "Kind, 5-8 Jahre (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Kind, 9-12 Jahre (17 cm)",
+            "Small hand (19 cm)": "Kleine Hand (19 cm)",
+            "Woman (20 cm)": "Frau (20 cm)",
+            "Man (22.5 cm)": "Mann (22,5 cm)",
+            "Large hand (24 cm)": "Große Hand (24 cm)",
+            "Custom...": "Benutzerdefiniert...",
+            "Version %1": "Version %1",
+            "No open score found.": "Keine geöffnete Partitur gefunden.",
+            "Staves in score: %1": "Notenzeilen in der Partitur: %1",
+            "Error: %1": "Fehler: %1",
+            "a fourth": "eine Quarte",
+            "a fifth": "eine Quinte",
+            "a sixth": "eine Sexte",
+            "a seventh": "eine Septime",
+            "an octave": "eine Oktave",
+            "a ninth": "eine None",
+            "a tenth": "eine Dezime",
+            "an eleventh": "eine Undezime",
+            "Reaches less than a fourth.": "Greift weniger als eine Quarte.",
+            "Reaches %1 at most.": "Greift höchstens %1.",
+            "Reaches %1 at most, %2 comfortably.": "Greift höchstens %1, bequem %2.",
+            "No range selection found.": "Keine Bereichsauswahl gefunden.",
+            "staff %1 is outside the selection": "Notenzeile %1 liegt außerhalb der Auswahl",
+            "staff %1 is a percussion staff": "Notenzeile %1 ist eine Schlagzeug-Notenzeile",
+            "Nothing to do.": "Nichts zu tun.",
+            "Nothing to do (%1).": "Nichts zu tun (%1).",
+            "No notes found.": "Keine Noten gefunden.",
+            "Calculating...": "Berechnung läuft...",
+            "stopped by user": "vom Benutzer abgebrochen",
+            "Stopped. Nothing was written.": "Abgebrochen. Es wurde nichts geschrieben.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Fertig: %1 Fingersätze eingefügt (rückgängig mit Strg+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "%1 Note(n) mit eigenem Fingersatz unverändert gelassen.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "An %1 Stelle(n) konnten nicht alle physischen Bedingungen erfüllt werden (vorhandener Fingersatz, gehaltene Note oder zu weiter Akkord): bitte prüfen.",
+            "Right hand: staff": "Rechte Hand: Notenzeile",
+            "Left hand: staff (0 = none)": "Linke Hand: Notenzeile (0 = keine)",
+            "Hand": "Hand",
+            "Span thumb - little finger (cm)": "Spannweite Daumen - kleiner Finger (cm)",
+            "Child's hand (less mobility)": "Kinderhand (weniger beweglich)",
+            "Keep existing fingerings": "Vorhandene Fingersätze beibehalten",
+            "Repeated notes: write the finger only when it changes": "Tonwiederholungen: Finger nur bei Wechsel schreiben",
+            "Selection only": "Nur Auswahl",
+            "Stop": "Stopp",
+            "Close": "Schließen",
+            "Apply": "Anwenden"
+        };
+        case "fr": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Insère le doigté de piano (1-5) pour la main droite et la main gauche dans la partition ouverte.",
+            "Child, 5-8 years (14.5 cm)": "Enfant, 5-8 ans (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Enfant, 9-12 ans (17 cm)",
+            "Small hand (19 cm)": "Petite main (19 cm)",
+            "Woman (20 cm)": "Femme (20 cm)",
+            "Man (22.5 cm)": "Homme (22,5 cm)",
+            "Large hand (24 cm)": "Grande main (24 cm)",
+            "Custom...": "Personnalisée...",
+            "Version %1": "Version %1",
+            "No open score found.": "Aucune partition ouverte.",
+            "Staves in score: %1": "Portées dans la partition : %1",
+            "Error: %1": "Erreur : %1",
+            "a fourth": "une quarte",
+            "a fifth": "une quinte",
+            "a sixth": "une sixte",
+            "a seventh": "une septième",
+            "an octave": "une octave",
+            "a ninth": "une neuvième",
+            "a tenth": "une dixième",
+            "an eleventh": "une onzième",
+            "Reaches less than a fourth.": "Atteint moins d'une quarte.",
+            "Reaches %1 at most.": "Atteint au plus %1.",
+            "Reaches %1 at most, %2 comfortably.": "Atteint au plus %1, %2 confortablement.",
+            "No range selection found.": "Aucune sélection de mesures trouvée.",
+            "staff %1 is outside the selection": "la portée %1 est hors de la sélection",
+            "staff %1 is a percussion staff": "la portée %1 est une portée de percussion",
+            "Nothing to do.": "Rien à faire.",
+            "Nothing to do (%1).": "Rien à faire (%1).",
+            "No notes found.": "Aucune note trouvée.",
+            "Calculating...": "Calcul en cours...",
+            "stopped by user": "arrêté par l'utilisateur",
+            "Stopped. Nothing was written.": "Arrêté. Rien n'a été écrit.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Terminé : %1 doigtés insérés (annuler avec Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "%1 note(s) avec doigté personnalisé laissée(s) intacte(s).",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "%1 endroit(s) ne respectent pas toutes les contraintes physiques (doigté existant, note tenue ou accord trop large) : à vérifier.",
+            "Right hand: staff": "Main droite : portée",
+            "Left hand: staff (0 = none)": "Main gauche : portée (0 = aucune)",
+            "Hand": "Main",
+            "Span thumb - little finger (cm)": "Écart pouce - auriculaire (cm)",
+            "Child's hand (less mobility)": "Main d'enfant (moins de mobilité)",
+            "Keep existing fingerings": "Conserver les doigtés existants",
+            "Repeated notes: write the finger only when it changes": "Notes répétées : n'écrire le doigt que s'il change",
+            "Selection only": "Sélection uniquement",
+            "Stop": "Arrêter",
+            "Close": "Fermer",
+            "Apply": "Appliquer"
+        };
+        case "it": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Inserisce la diteggiatura pianistica (1-5) per la mano destra e sinistra nella partitura aperta.",
+            "Child, 5-8 years (14.5 cm)": "Bambino, 5-8 anni (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Bambino, 9-12 anni (17 cm)",
+            "Small hand (19 cm)": "Mano piccola (19 cm)",
+            "Woman (20 cm)": "Donna (20 cm)",
+            "Man (22.5 cm)": "Uomo (22,5 cm)",
+            "Large hand (24 cm)": "Mano grande (24 cm)",
+            "Custom...": "Personalizzata...",
+            "Version %1": "Versione %1",
+            "No open score found.": "Nessuna partitura aperta.",
+            "Staves in score: %1": "Pentagrammi nella partitura: %1",
+            "Error: %1": "Errore: %1",
+            "a fourth": "una quarta",
+            "a fifth": "una quinta",
+            "a sixth": "una sesta",
+            "a seventh": "una settima",
+            "an octave": "un'ottava",
+            "a ninth": "una nona",
+            "a tenth": "una decima",
+            "an eleventh": "un'undicesima",
+            "Reaches less than a fourth.": "Raggiunge meno di una quarta.",
+            "Reaches %1 at most.": "Raggiunge al massimo %1.",
+            "Reaches %1 at most, %2 comfortably.": "Raggiunge al massimo %1, comodamente %2.",
+            "No range selection found.": "Nessuna selezione di battute trovata.",
+            "staff %1 is outside the selection": "il pentagramma %1 è fuori dalla selezione",
+            "staff %1 is a percussion staff": "il pentagramma %1 è di percussioni",
+            "Nothing to do.": "Niente da fare.",
+            "Nothing to do (%1).": "Niente da fare (%1).",
+            "No notes found.": "Nessuna nota trovata.",
+            "Calculating...": "Calcolo in corso...",
+            "stopped by user": "interrotto dall'utente",
+            "Stopped. Nothing was written.": "Interrotto. Non è stato scritto nulla.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Fatto: %1 diteggiature inserite (annulla con Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "%1 nota/e con diteggiatura personalizzata lasciata/e invariata/e.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "In %1 punto/i non è stato possibile rispettare tutti i vincoli fisici (diteggiatura esistente, nota tenuta o accordo troppo ampio): controllali.",
+            "Right hand: staff": "Mano destra: pentagramma",
+            "Left hand: staff (0 = none)": "Mano sinistra: pentagramma (0 = nessuno)",
+            "Hand": "Mano",
+            "Span thumb - little finger (cm)": "Apertura pollice - mignolo (cm)",
+            "Child's hand (less mobility)": "Mano di bambino (meno mobilità)",
+            "Keep existing fingerings": "Mantieni le diteggiature esistenti",
+            "Repeated notes: write the finger only when it changes": "Note ripetute: scrivi il dito solo quando cambia",
+            "Selection only": "Solo la selezione",
+            "Stop": "Ferma",
+            "Close": "Chiudi",
+            "Apply": "Applica"
+        };
+        case "es": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Inserta la digitación de piano (1-5) para la mano derecha y la izquierda en la partitura abierta.",
+            "Child, 5-8 years (14.5 cm)": "Niño, 5-8 años (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Niño, 9-12 años (17 cm)",
+            "Small hand (19 cm)": "Mano pequeña (19 cm)",
+            "Woman (20 cm)": "Mujer (20 cm)",
+            "Man (22.5 cm)": "Hombre (22,5 cm)",
+            "Large hand (24 cm)": "Mano grande (24 cm)",
+            "Custom...": "Personalizada...",
+            "Version %1": "Versión %1",
+            "No open score found.": "No hay ninguna partitura abierta.",
+            "Staves in score: %1": "Pentagramas en la partitura: %1",
+            "Error: %1": "Error: %1",
+            "a fourth": "una cuarta",
+            "a fifth": "una quinta",
+            "a sixth": "una sexta",
+            "a seventh": "una séptima",
+            "an octave": "una octava",
+            "a ninth": "una novena",
+            "a tenth": "una décima",
+            "an eleventh": "una undécima",
+            "Reaches less than a fourth.": "Alcanza menos de una cuarta.",
+            "Reaches %1 at most.": "Alcanza como máximo %1.",
+            "Reaches %1 at most, %2 comfortably.": "Alcanza como máximo %1, cómodamente %2.",
+            "No range selection found.": "No se encontró ninguna selección de compases.",
+            "staff %1 is outside the selection": "el pentagrama %1 está fuera de la selección",
+            "staff %1 is a percussion staff": "el pentagrama %1 es de percusión",
+            "Nothing to do.": "Nada que hacer.",
+            "Nothing to do (%1).": "Nada que hacer (%1).",
+            "No notes found.": "No se encontraron notas.",
+            "Calculating...": "Calculando...",
+            "stopped by user": "detenido por el usuario",
+            "Stopped. Nothing was written.": "Detenido. No se ha escrito nada.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Hecho: %1 digitaciones insertadas (deshacer con Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "%1 nota(s) con digitación personalizada sin modificar.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "En %1 punto(s) no se pudieron cumplir todas las restricciones físicas (digitación existente, nota mantenida o acorde demasiado amplio): revísalos.",
+            "Right hand: staff": "Mano derecha: pentagrama",
+            "Left hand: staff (0 = none)": "Mano izquierda: pentagrama (0 = ninguno)",
+            "Hand": "Mano",
+            "Span thumb - little finger (cm)": "Apertura pulgar - meñique (cm)",
+            "Child's hand (less mobility)": "Mano de niño (menos movilidad)",
+            "Keep existing fingerings": "Conservar las digitaciones existentes",
+            "Repeated notes: write the finger only when it changes": "Notas repetidas: escribir el dedo solo cuando cambia",
+            "Selection only": "Solo la selección",
+            "Stop": "Detener",
+            "Close": "Cerrar",
+            "Apply": "Aplicar"
+        };
+        case "pt": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Insere o dedilhado de piano (1-5) para a mão direita e a esquerda na partitura aberta.",
+            "Child, 5-8 years (14.5 cm)": "Criança, 5-8 anos (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Criança, 9-12 anos (17 cm)",
+            "Small hand (19 cm)": "Mão pequena (19 cm)",
+            "Woman (20 cm)": "Mulher (20 cm)",
+            "Man (22.5 cm)": "Homem (22,5 cm)",
+            "Large hand (24 cm)": "Mão grande (24 cm)",
+            "Custom...": "Personalizada...",
+            "Version %1": "Versão %1",
+            "No open score found.": "Nenhuma partitura aberta.",
+            "Staves in score: %1": "Pautas na partitura: %1",
+            "Error: %1": "Erro: %1",
+            "a fourth": "uma quarta",
+            "a fifth": "uma quinta",
+            "a sixth": "uma sexta",
+            "a seventh": "uma sétima",
+            "an octave": "uma oitava",
+            "a ninth": "uma nona",
+            "a tenth": "uma décima",
+            "an eleventh": "uma décima primeira",
+            "Reaches less than a fourth.": "Alcança menos de uma quarta.",
+            "Reaches %1 at most.": "Alcança no máximo %1.",
+            "Reaches %1 at most, %2 comfortably.": "Alcança no máximo %1, confortavelmente %2.",
+            "No range selection found.": "Nenhuma seleção de compassos encontrada.",
+            "staff %1 is outside the selection": "a pauta %1 está fora da seleção",
+            "staff %1 is a percussion staff": "a pauta %1 é de percussão",
+            "Nothing to do.": "Nada a fazer.",
+            "Nothing to do (%1).": "Nada a fazer (%1).",
+            "No notes found.": "Nenhuma nota encontrada.",
+            "Calculating...": "Calculando...",
+            "stopped by user": "interrompido",
+            "Stopped. Nothing was written.": "Interrompido. Nada foi escrito.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Concluído: %1 dedilhados inseridos (desfazer com Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "%1 nota(s) com dedilhado personalizado mantida(s) sem alterações.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "Em %1 ponto(s) não foi possível cumprir todas as restrições físicas (dedilhado existente, nota sustentada ou acorde largo demais): verifique-os.",
+            "Right hand: staff": "Mão direita: pauta",
+            "Left hand: staff (0 = none)": "Mão esquerda: pauta (0 = nenhuma)",
+            "Hand": "Mão",
+            "Span thumb - little finger (cm)": "Abertura polegar - mindinho (cm)",
+            "Child's hand (less mobility)": "Mão de criança (menos mobilidade)",
+            "Keep existing fingerings": "Manter os dedilhados existentes",
+            "Repeated notes: write the finger only when it changes": "Notas repetidas: escrever o dedo só quando muda",
+            "Selection only": "Somente a seleção",
+            "Stop": "Parar",
+            "Close": "Fechar",
+            "Apply": "Aplicar"
+        };
+        case "nl": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Voegt pianovingerzettingen (1-5) voor de rechter- en linkerhand toe aan de geopende partituur.",
+            "Child, 5-8 years (14.5 cm)": "Kind, 5-8 jaar (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Kind, 9-12 jaar (17 cm)",
+            "Small hand (19 cm)": "Kleine hand (19 cm)",
+            "Woman (20 cm)": "Vrouw (20 cm)",
+            "Man (22.5 cm)": "Man (22,5 cm)",
+            "Large hand (24 cm)": "Grote hand (24 cm)",
+            "Custom...": "Aangepast...",
+            "Version %1": "Versie %1",
+            "No open score found.": "Geen geopende partituur gevonden.",
+            "Staves in score: %1": "Notenbalken in de partituur: %1",
+            "Error: %1": "Fout: %1",
+            "a fourth": "een kwart",
+            "a fifth": "een kwint",
+            "a sixth": "een sext",
+            "a seventh": "een septiem",
+            "an octave": "een octaaf",
+            "a ninth": "een none",
+            "a tenth": "een decime",
+            "an eleventh": "een undecime",
+            "Reaches less than a fourth.": "Reikt minder dan een kwart.",
+            "Reaches %1 at most.": "Reikt hoogstens %1.",
+            "Reaches %1 at most, %2 comfortably.": "Reikt hoogstens %1, comfortabel %2.",
+            "No range selection found.": "Geen bereikselectie gevonden.",
+            "staff %1 is outside the selection": "notenbalk %1 valt buiten de selectie",
+            "staff %1 is a percussion staff": "notenbalk %1 is een slagwerknotenbalk",
+            "Nothing to do.": "Niets te doen.",
+            "Nothing to do (%1).": "Niets te doen (%1).",
+            "No notes found.": "Geen noten gevonden.",
+            "Calculating...": "Bezig met berekenen...",
+            "stopped by user": "gestopt door de gebruiker",
+            "Stopped. Nothing was written.": "Gestopt. Er is niets geschreven.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Klaar: %1 vingerzettingen ingevoegd (ongedaan maken met Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "%1 noot/noten met eigen vingerzetting ongewijzigd gelaten.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "Op %1 plaats(en) kon niet aan alle fysieke beperkingen worden voldaan (bestaande vingerzetting, aangehouden noot of te breed akkoord): controleer ze.",
+            "Right hand: staff": "Rechterhand: notenbalk",
+            "Left hand: staff (0 = none)": "Linkerhand: notenbalk (0 = geen)",
+            "Hand": "Hand",
+            "Span thumb - little finger (cm)": "Spanwijdte duim - pink (cm)",
+            "Child's hand (less mobility)": "Kinderhand (minder beweeglijk)",
+            "Keep existing fingerings": "Bestaande vingerzettingen behouden",
+            "Repeated notes: write the finger only when it changes": "Herhaalde noten: vinger alleen noteren bij een wissel",
+            "Selection only": "Alleen selectie",
+            "Stop": "Stop",
+            "Close": "Sluiten",
+            "Apply": "Toepassen"
+        };
+        case "pl": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Wstawia palcowanie fortepianowe (1-5) dla prawej i lewej ręki do otwartej partytury.",
+            "Child, 5-8 years (14.5 cm)": "Dziecko, 5-8 lat (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Dziecko, 9-12 lat (17 cm)",
+            "Small hand (19 cm)": "Mała dłoń (19 cm)",
+            "Woman (20 cm)": "Kobieta (20 cm)",
+            "Man (22.5 cm)": "Mężczyzna (22,5 cm)",
+            "Large hand (24 cm)": "Duża dłoń (24 cm)",
+            "Custom...": "Własna...",
+            "Version %1": "Wersja %1",
+            "No open score found.": "Nie znaleziono otwartej partytury.",
+            "Staves in score: %1": "Pięciolinie w partyturze: %1",
+            "Error: %1": "Błąd: %1",
+            "a fourth": "kwarta",
+            "a fifth": "kwinta",
+            "a sixth": "seksta",
+            "a seventh": "septyma",
+            "an octave": "oktawa",
+            "a ninth": "nona",
+            "a tenth": "decyma",
+            "an eleventh": "undecyma",
+            "Reaches less than a fourth.": "Zasięg mniejszy niż kwarta.",
+            "Reaches %1 at most.": "Zasięg maksymalny: %1.",
+            "Reaches %1 at most, %2 comfortably.": "Zasięg maksymalny: %1, wygodny: %2.",
+            "No range selection found.": "Nie znaleziono zaznaczenia zakresu.",
+            "staff %1 is outside the selection": "pięciolinia %1 jest poza zaznaczeniem",
+            "staff %1 is a percussion staff": "pięciolinia %1 jest perkusyjna",
+            "Nothing to do.": "Nic do zrobienia.",
+            "Nothing to do (%1).": "Nic do zrobienia (%1).",
+            "No notes found.": "Nie znaleziono nut.",
+            "Calculating...": "Obliczanie...",
+            "stopped by user": "zatrzymane przez użytkownika",
+            "Stopped. Nothing was written.": "Zatrzymano. Nic nie zostało zapisane.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Gotowe. Wstawione palcowania: %1 (cofnij: Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "Nuty z własnym palcowaniem pozostawione bez zmian: %1.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "Miejsca, w których nie udało się spełnić wszystkich ograniczeń fizycznych (istniejące palcowanie, trzymana nuta lub zbyt szeroki akord): %1. Sprawdź je.",
+            "Right hand: staff": "Prawa ręka: pięciolinia",
+            "Left hand: staff (0 = none)": "Lewa ręka: pięciolinia (0 = brak)",
+            "Hand": "Dłoń",
+            "Span thumb - little finger (cm)": "Rozpiętość kciuk - mały palec (cm)",
+            "Child's hand (less mobility)": "Dłoń dziecka (mniejsza ruchomość)",
+            "Keep existing fingerings": "Zachowaj istniejące palcowania",
+            "Repeated notes: write the finger only when it changes": "Powtarzane nuty: wpisuj palec tylko przy zmianie",
+            "Selection only": "Tylko zaznaczenie",
+            "Stop": "Zatrzymaj",
+            "Close": "Zamknij",
+            "Apply": "Zastosuj"
+        };
+        case "cs": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Vloží klavírní prstoklad (1-5) pro pravou a levou ruku do otevřené partitury.",
+            "Child, 5-8 years (14.5 cm)": "Dítě, 5-8 let (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Dítě, 9-12 let (17 cm)",
+            "Small hand (19 cm)": "Malá ruka (19 cm)",
+            "Woman (20 cm)": "Žena (20 cm)",
+            "Man (22.5 cm)": "Muž (22,5 cm)",
+            "Large hand (24 cm)": "Velká ruka (24 cm)",
+            "Custom...": "Vlastní...",
+            "Version %1": "Verze %1",
+            "No open score found.": "Nebyla nalezena žádná otevřená partitura.",
+            "Staves in score: %1": "Notové osnovy v partituře: %1",
+            "Error: %1": "Chyba: %1",
+            "a fourth": "kvarta",
+            "a fifth": "kvinta",
+            "a sixth": "sexta",
+            "a seventh": "septima",
+            "an octave": "oktáva",
+            "a ninth": "nona",
+            "a tenth": "decima",
+            "an eleventh": "undecima",
+            "Reaches less than a fourth.": "Rozpětí menší než kvarta.",
+            "Reaches %1 at most.": "Největší rozpětí: %1.",
+            "Reaches %1 at most, %2 comfortably.": "Největší rozpětí: %1, pohodlné: %2.",
+            "No range selection found.": "Nebyl nalezen žádný výběr rozsahu.",
+            "staff %1 is outside the selection": "osnova %1 je mimo výběr",
+            "staff %1 is a percussion staff": "osnova %1 je pro bicí nástroje",
+            "Nothing to do.": "Není co dělat.",
+            "Nothing to do (%1).": "Není co dělat (%1).",
+            "No notes found.": "Nebyly nalezeny žádné noty.",
+            "Calculating...": "Probíhá výpočet...",
+            "stopped by user": "zastaveno uživatelem",
+            "Stopped. Nothing was written.": "Zastaveno. Nic nebylo zapsáno.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Hotovo. Vložené prstoklady: %1 (zpět pomocí Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "Noty s vlastním prstokladem ponechané beze změny: %1.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "Místa, kde nebylo možné splnit všechna fyzická omezení (existující prstoklad, držená nota nebo příliš široký akord): %1. Zkontrolujte je.",
+            "Right hand: staff": "Pravá ruka: osnova",
+            "Left hand: staff (0 = none)": "Levá ruka: osnova (0 = žádná)",
+            "Hand": "Ruka",
+            "Span thumb - little finger (cm)": "Rozpětí palec - malíček (cm)",
+            "Child's hand (less mobility)": "Dětská ruka (menší pohyblivost)",
+            "Keep existing fingerings": "Zachovat existující prstoklady",
+            "Repeated notes: write the finger only when it changes": "Opakované noty: psát prst jen při změně",
+            "Selection only": "Pouze výběr",
+            "Stop": "Zastavit",
+            "Close": "Zavřít",
+            "Apply": "Použít"
+        };
+        case "sv": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Infogar pianofingersättning (1-5) för höger och vänster hand i det öppna partituret.",
+            "Child, 5-8 years (14.5 cm)": "Barn, 5-8 år (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Barn, 9-12 år (17 cm)",
+            "Small hand (19 cm)": "Liten hand (19 cm)",
+            "Woman (20 cm)": "Kvinna (20 cm)",
+            "Man (22.5 cm)": "Man (22,5 cm)",
+            "Large hand (24 cm)": "Stor hand (24 cm)",
+            "Custom...": "Anpassad...",
+            "Version %1": "Version %1",
+            "No open score found.": "Inget öppet partitur hittades.",
+            "Staves in score: %1": "Notsystem i partituret: %1",
+            "Error: %1": "Fel: %1",
+            "a fourth": "en kvart",
+            "a fifth": "en kvint",
+            "a sixth": "en sext",
+            "a seventh": "en septima",
+            "an octave": "en oktav",
+            "a ninth": "en nona",
+            "a tenth": "en decima",
+            "an eleventh": "en undecima",
+            "Reaches less than a fourth.": "Når mindre än en kvart.",
+            "Reaches %1 at most.": "Når högst %1.",
+            "Reaches %1 at most, %2 comfortably.": "Når högst %1, bekvämt %2.",
+            "No range selection found.": "Inget områdesval hittades.",
+            "staff %1 is outside the selection": "notsystem %1 ligger utanför markeringen",
+            "staff %1 is a percussion staff": "notsystem %1 är ett slagverkssystem",
+            "Nothing to do.": "Inget att göra.",
+            "Nothing to do (%1).": "Inget att göra (%1).",
+            "No notes found.": "Inga noter hittades.",
+            "Calculating...": "Beräknar...",
+            "stopped by user": "stoppad av användaren",
+            "Stopped. Nothing was written.": "Stoppad. Inget skrevs.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Klart: %1 fingersättningar infogade (ångra med Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "%1 not(er) med egen fingersättning lämnades orörda.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "På %1 ställe(n) kunde inte alla fysiska villkor uppfyllas (befintlig fingersättning, hållen ton eller för brett ackord): kontrollera dem.",
+            "Right hand: staff": "Höger hand: notsystem",
+            "Left hand: staff (0 = none)": "Vänster hand: notsystem (0 = inget)",
+            "Hand": "Hand",
+            "Span thumb - little finger (cm)": "Spännvidd tumme - lillfinger (cm)",
+            "Child's hand (less mobility)": "Barnhand (mindre rörlighet)",
+            "Keep existing fingerings": "Behåll befintliga fingersättningar",
+            "Repeated notes: write the finger only when it changes": "Upprepade toner: skriv fingret bara när det byts",
+            "Selection only": "Endast markering",
+            "Stop": "Stoppa",
+            "Close": "Stäng",
+            "Apply": "Verkställ"
+        };
+        case "da": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Indsætter klaverfingersætning (1-5) for højre og venstre hånd i det åbne partitur.",
+            "Child, 5-8 years (14.5 cm)": "Barn, 5-8 år (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Barn, 9-12 år (17 cm)",
+            "Small hand (19 cm)": "Lille hånd (19 cm)",
+            "Woman (20 cm)": "Kvinde (20 cm)",
+            "Man (22.5 cm)": "Mand (22,5 cm)",
+            "Large hand (24 cm)": "Stor hånd (24 cm)",
+            "Custom...": "Tilpasset...",
+            "Version %1": "Version %1",
+            "No open score found.": "Der blev ikke fundet noget åbent partitur.",
+            "Staves in score: %1": "Nodesystemer i partituret: %1",
+            "Error: %1": "Fejl: %1",
+            "a fourth": "en kvart",
+            "a fifth": "en kvint",
+            "a sixth": "en sekst",
+            "a seventh": "en septim",
+            "an octave": "en oktav",
+            "a ninth": "en none",
+            "a tenth": "en decime",
+            "an eleventh": "en undecime",
+            "Reaches less than a fourth.": "Når mindre end en kvart.",
+            "Reaches %1 at most.": "Når højst %1.",
+            "Reaches %1 at most, %2 comfortably.": "Når højst %1, behageligt %2.",
+            "No range selection found.": "Der blev ikke fundet nogen områdemarkering.",
+            "staff %1 is outside the selection": "nodesystem %1 ligger uden for markeringen",
+            "staff %1 is a percussion staff": "nodesystem %1 er et slagtøjssystem",
+            "Nothing to do.": "Intet at gøre.",
+            "Nothing to do (%1).": "Intet at gøre (%1).",
+            "No notes found.": "Der blev ikke fundet nogen noder.",
+            "Calculating...": "Beregner...",
+            "stopped by user": "stoppet af brugeren",
+            "Stopped. Nothing was written.": "Stoppet. Der blev ikke skrevet noget.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Færdig: %1 fingersætninger indsat (fortryd med Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "%1 node(r) med egen fingersætning blev ikke ændret.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "%1 sted(er) kunne ikke opfylde alle fysiske betingelser (eksisterende fingersætning, holdt node eller for bred akkord): kontrollér dem.",
+            "Right hand: staff": "Højre hånd: nodesystem",
+            "Left hand: staff (0 = none)": "Venstre hånd: nodesystem (0 = intet)",
+            "Hand": "Hånd",
+            "Span thumb - little finger (cm)": "Spændvidde tommelfinger - lillefinger (cm)",
+            "Child's hand (less mobility)": "Barnehånd (mindre bevægelighed)",
+            "Keep existing fingerings": "Behold eksisterende fingersætninger",
+            "Repeated notes: write the finger only when it changes": "Gentagne toner: skriv kun fingeren, når den skifter",
+            "Selection only": "Kun markering",
+            "Stop": "Stop",
+            "Close": "Luk",
+            "Apply": "Anvend"
+        };
+        case "nb": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Setter inn pianofingersetting (1-5) for høyre og venstre hånd i det åpne partituret.",
+            "Child, 5-8 years (14.5 cm)": "Barn, 5-8 år (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Barn, 9-12 år (17 cm)",
+            "Small hand (19 cm)": "Liten hånd (19 cm)",
+            "Woman (20 cm)": "Kvinne (20 cm)",
+            "Man (22.5 cm)": "Mann (22,5 cm)",
+            "Large hand (24 cm)": "Stor hånd (24 cm)",
+            "Custom...": "Egendefinert...",
+            "Version %1": "Versjon %1",
+            "No open score found.": "Fant ikke noe åpent partitur.",
+            "Staves in score: %1": "Notesystemer i partituret: %1",
+            "Error: %1": "Feil: %1",
+            "a fourth": "en kvart",
+            "a fifth": "en kvint",
+            "a sixth": "en sekst",
+            "a seventh": "en septim",
+            "an octave": "en oktav",
+            "a ninth": "en none",
+            "a tenth": "en desime",
+            "an eleventh": "en undesime",
+            "Reaches less than a fourth.": "Når mindre enn en kvart.",
+            "Reaches %1 at most.": "Når høyst %1.",
+            "Reaches %1 at most, %2 comfortably.": "Når høyst %1, komfortabelt %2.",
+            "No range selection found.": "Fant ikke noe områdevalg.",
+            "staff %1 is outside the selection": "notesystem %1 ligger utenfor markeringen",
+            "staff %1 is a percussion staff": "notesystem %1 er et slagverksystem",
+            "Nothing to do.": "Ingenting å gjøre.",
+            "Nothing to do (%1).": "Ingenting å gjøre (%1).",
+            "No notes found.": "Fant ingen noter.",
+            "Calculating...": "Beregner...",
+            "stopped by user": "stoppet av brukeren",
+            "Stopped. Nothing was written.": "Stoppet. Ingenting ble skrevet.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Ferdig: %1 fingersettinger satt inn (angre med Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "%1 note(r) med egen fingersetting ble ikke endret.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "%1 sted(er) kunne ikke oppfylle alle fysiske betingelser (eksisterende fingersetting, holdt note eller for bred akkord): kontroller dem.",
+            "Right hand: staff": "Høyre hånd: notesystem",
+            "Left hand: staff (0 = none)": "Venstre hånd: notesystem (0 = ingen)",
+            "Hand": "Hånd",
+            "Span thumb - little finger (cm)": "Spennvidde tommel - lillefinger (cm)",
+            "Child's hand (less mobility)": "Barnehånd (mindre bevegelighet)",
+            "Keep existing fingerings": "Behold eksisterende fingersettinger",
+            "Repeated notes: write the finger only when it changes": "Gjentatte toner: skriv fingeren bare når den skifter",
+            "Selection only": "Bare markering",
+            "Stop": "Stopp",
+            "Close": "Lukk",
+            "Apply": "Bruk"
+        };
+        case "fi": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Lisää pianon sormitukset (1-5) oikealle ja vasemmalle kädelle avoimeen partituuriin.",
+            "Child, 5-8 years (14.5 cm)": "Lapsi, 5-8 vuotta (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Lapsi, 9-12 vuotta (17 cm)",
+            "Small hand (19 cm)": "Pieni käsi (19 cm)",
+            "Woman (20 cm)": "Nainen (20 cm)",
+            "Man (22.5 cm)": "Mies (22,5 cm)",
+            "Large hand (24 cm)": "Suuri käsi (24 cm)",
+            "Custom...": "Mukautettu...",
+            "Version %1": "Versio %1",
+            "No open score found.": "Avointa partituuria ei löytynyt.",
+            "Staves in score: %1": "Nuottiviivastoja partituurissa: %1",
+            "Error: %1": "Virhe: %1",
+            "a fourth": "kvartti",
+            "a fifth": "kvintti",
+            "a sixth": "seksti",
+            "a seventh": "septimi",
+            "an octave": "oktaavi",
+            "a ninth": "nooni",
+            "a tenth": "desimi",
+            "an eleventh": "undesimi",
+            "Reaches less than a fourth.": "Ulottuvuus alle kvartin.",
+            "Reaches %1 at most.": "Suurin ulottuvuus: %1.",
+            "Reaches %1 at most, %2 comfortably.": "Suurin ulottuvuus: %1, mukava: %2.",
+            "No range selection found.": "Aluevalintaa ei löytynyt.",
+            "staff %1 is outside the selection": "viivasto %1 on valinnan ulkopuolella",
+            "staff %1 is a percussion staff": "viivasto %1 on lyömäsoitinviivasto",
+            "Nothing to do.": "Ei tehtävää.",
+            "Nothing to do (%1).": "Ei tehtävää (%1).",
+            "No notes found.": "Nuotteja ei löytynyt.",
+            "Calculating...": "Lasketaan...",
+            "stopped by user": "käyttäjä keskeytti",
+            "Stopped. Nothing was written.": "Keskeytetty. Mitään ei kirjoitettu.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Valmis. Lisättyjä sormituksia: %1 (kumoa: Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "Muuttamatta jätetyt nuotit, joissa on oma sormitus: %1.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "Kohtia, joissa kaikkia fyysisiä rajoitteita ei voitu täyttää (olemassa oleva sormitus, pidetty nuotti tai liian leveä sointu): %1. Tarkista ne.",
+            "Right hand: staff": "Oikea käsi: viivasto",
+            "Left hand: staff (0 = none)": "Vasen käsi: viivasto (0 = ei mitään)",
+            "Hand": "Käsi",
+            "Span thumb - little finger (cm)": "Ulottuvuus peukalo - pikkusormi (cm)",
+            "Child's hand (less mobility)": "Lapsen käsi (vähemmän liikkuvuutta)",
+            "Keep existing fingerings": "Säilytä olemassa olevat sormitukset",
+            "Repeated notes: write the finger only when it changes": "Toistuvat nuotit: merkitse sormi vain sen vaihtuessa",
+            "Selection only": "Vain valinta",
+            "Stop": "Pysäytä",
+            "Close": "Sulje",
+            "Apply": "Käytä"
+        };
+        case "hu": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Zongora-ujjrendet (1-5) illeszt be a jobb és a bal kéz számára a megnyitott kottába.",
+            "Child, 5-8 years (14.5 cm)": "Gyermek, 5-8 év (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Gyermek, 9-12 év (17 cm)",
+            "Small hand (19 cm)": "Kis kéz (19 cm)",
+            "Woman (20 cm)": "Nő (20 cm)",
+            "Man (22.5 cm)": "Férfi (22,5 cm)",
+            "Large hand (24 cm)": "Nagy kéz (24 cm)",
+            "Custom...": "Egyéni...",
+            "Version %1": "Verzió: %1",
+            "No open score found.": "Nem található megnyitott kotta.",
+            "Staves in score: %1": "Kottasorok a kottában: %1",
+            "Error: %1": "Hiba: %1",
+            "a fourth": "kvart",
+            "a fifth": "kvint",
+            "a sixth": "szext",
+            "a seventh": "szeptim",
+            "an octave": "oktáv",
+            "a ninth": "nóna",
+            "a tenth": "decima",
+            "an eleventh": "undecima",
+            "Reaches less than a fourth.": "Fesztávolság: kevesebb mint egy kvart.",
+            "Reaches %1 at most.": "Legnagyobb fesztávolság: %1.",
+            "Reaches %1 at most, %2 comfortably.": "Legnagyobb fesztávolság: %1, kényelmes: %2.",
+            "No range selection found.": "Nem található tartománykijelölés.",
+            "staff %1 is outside the selection": "a(z) %1. kottasor a kijelölésen kívül esik",
+            "staff %1 is a percussion staff": "a(z) %1. kottasor ütőhangszeres",
+            "Nothing to do.": "Nincs teendő.",
+            "Nothing to do (%1).": "Nincs teendő (%1).",
+            "No notes found.": "Nem találhatók hangjegyek.",
+            "Calculating...": "Számítás...",
+            "stopped by user": "a felhasználó leállította",
+            "Stopped. Nothing was written.": "Leállítva. Semmi sem lett beírva.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Kész. Beillesztett ujjrendek: %1 (visszavonás: Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "Változatlanul hagyott, egyéni ujjrendű hangjegyek: %1.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "Helyek, ahol nem teljesült minden fizikai feltétel (meglévő ujjrend, kitartott hang vagy túl széles akkord): %1. Kérjük, ellenőrizze őket.",
+            "Right hand: staff": "Jobb kéz: kottasor",
+            "Left hand: staff (0 = none)": "Bal kéz: kottasor (0 = nincs)",
+            "Hand": "Kéz",
+            "Span thumb - little finger (cm)": "Fesztávolság hüvelykujj - kisujj (cm)",
+            "Child's hand (less mobility)": "Gyermekkéz (kisebb mozgékonyság)",
+            "Keep existing fingerings": "Meglévő ujjrendek megtartása",
+            "Repeated notes: write the finger only when it changes": "Ismételt hangok: ujjrend csak ujjváltáskor",
+            "Selection only": "Csak a kijelölés",
+            "Stop": "Leállítás",
+            "Close": "Bezárás",
+            "Apply": "Alkalmaz"
+        };
+        case "ro": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Inserează digitația pentru pian (1-5) pentru mâna dreaptă și stângă în partitura deschisă.",
+            "Child, 5-8 years (14.5 cm)": "Copil, 5-8 ani (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Copil, 9-12 ani (17 cm)",
+            "Small hand (19 cm)": "Mână mică (19 cm)",
+            "Woman (20 cm)": "Femeie (20 cm)",
+            "Man (22.5 cm)": "Bărbat (22,5 cm)",
+            "Large hand (24 cm)": "Mână mare (24 cm)",
+            "Custom...": "Personalizat...",
+            "Version %1": "Versiunea %1",
+            "No open score found.": "Nu a fost găsită nicio partitură deschisă.",
+            "Staves in score: %1": "Portative în partitură: %1",
+            "Error: %1": "Eroare: %1",
+            "a fourth": "o cvartă",
+            "a fifth": "o cvintă",
+            "a sixth": "o sextă",
+            "a seventh": "o septimă",
+            "an octave": "o octavă",
+            "a ninth": "o nonă",
+            "a tenth": "o decimă",
+            "an eleventh": "o undecimă",
+            "Reaches less than a fourth.": "Ajunge la mai puțin de o cvartă.",
+            "Reaches %1 at most.": "Ajunge cel mult la %1.",
+            "Reaches %1 at most, %2 comfortably.": "Ajunge cel mult la %1, confortabil la %2.",
+            "No range selection found.": "Nu a fost găsită nicio selecție de măsuri.",
+            "staff %1 is outside the selection": "portativul %1 este în afara selecției",
+            "staff %1 is a percussion staff": "portativul %1 este de percuție",
+            "Nothing to do.": "Nimic de făcut.",
+            "Nothing to do (%1).": "Nimic de făcut (%1).",
+            "No notes found.": "Nu au fost găsite note.",
+            "Calculating...": "Se calculează...",
+            "stopped by user": "oprit de utilizator",
+            "Stopped. Nothing was written.": "Oprit. Nu s-a scris nimic.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Gata. Digitații inserate: %1 (anulare cu Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "Note cu digitație personalizată lăsate neschimbate: %1.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "Locuri în care nu s-au putut respecta toate constrângerile fizice (digitație existentă, notă ținută sau acord prea larg): %1. Verificați-le.",
+            "Right hand: staff": "Mâna dreaptă: portativ",
+            "Left hand: staff (0 = none)": "Mâna stângă: portativ (0 = niciunul)",
+            "Hand": "Mână",
+            "Span thumb - little finger (cm)": "Deschidere degetul mare - degetul mic (cm)",
+            "Child's hand (less mobility)": "Mână de copil (mobilitate redusă)",
+            "Keep existing fingerings": "Păstrează digitațiile existente",
+            "Repeated notes: write the finger only when it changes": "Note repetate: scrie degetul doar când se schimbă",
+            "Selection only": "Doar selecția",
+            "Stop": "Oprește",
+            "Close": "Închide",
+            "Apply": "Aplică"
+        };
+        case "el": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Εισάγει δακτυλοθεσία πιάνου (1-5) για το δεξί και το αριστερό χέρι στην ανοιχτή παρτιτούρα.",
+            "Child, 5-8 years (14.5 cm)": "Παιδί, 5-8 ετών (14,5 cm)",
+            "Child, 9-12 years (17 cm)": "Παιδί, 9-12 ετών (17 cm)",
+            "Small hand (19 cm)": "Μικρό χέρι (19 cm)",
+            "Woman (20 cm)": "Γυναίκα (20 cm)",
+            "Man (22.5 cm)": "Άνδρας (22,5 cm)",
+            "Large hand (24 cm)": "Μεγάλο χέρι (24 cm)",
+            "Custom...": "Προσαρμοσμένο...",
+            "Version %1": "Έκδοση %1",
+            "No open score found.": "Δεν βρέθηκε ανοιχτή παρτιτούρα.",
+            "Staves in score: %1": "Πεντάγραμμα στην παρτιτούρα: %1",
+            "Error: %1": "Σφάλμα: %1",
+            "a fourth": "τέταρτη",
+            "a fifth": "πέμπτη",
+            "a sixth": "έκτη",
+            "a seventh": "έβδομη",
+            "an octave": "οκτάβα",
+            "a ninth": "ένατη",
+            "a tenth": "δέκατη",
+            "an eleventh": "ενδέκατη",
+            "Reaches less than a fourth.": "Έκταση μικρότερη από τέταρτη.",
+            "Reaches %1 at most.": "Μέγιστη έκταση: %1.",
+            "Reaches %1 at most, %2 comfortably.": "Μέγιστη έκταση: %1, άνετη: %2.",
+            "No range selection found.": "Δεν βρέθηκε επιλογή περιοχής.",
+            "staff %1 is outside the selection": "το πεντάγραμμο %1 είναι εκτός επιλογής",
+            "staff %1 is a percussion staff": "το πεντάγραμμο %1 είναι κρουστών",
+            "Nothing to do.": "Τίποτα προς εκτέλεση.",
+            "Nothing to do (%1).": "Τίποτα προς εκτέλεση (%1).",
+            "No notes found.": "Δεν βρέθηκαν νότες.",
+            "Calculating...": "Υπολογισμός...",
+            "stopped by user": "διακόπηκε από τον χρήστη",
+            "Stopped. Nothing was written.": "Διακόπηκε. Δεν γράφτηκε τίποτα.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Ολοκληρώθηκε. Δακτυλοθεσίες που εισήχθησαν: %1 (αναίρεση με Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "Νότες με προσαρμοσμένη δακτυλοθεσία που έμειναν αμετάβλητες: %1.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "Σημεία όπου δεν ικανοποιήθηκαν όλοι οι φυσικοί περιορισμοί (υπάρχουσα δακτυλοθεσία, κρατημένη νότα ή πολύ ανοιχτή συγχορδία): %1. Ελέγξτε τα.",
+            "Right hand: staff": "Δεξί χέρι: πεντάγραμμο",
+            "Left hand: staff (0 = none)": "Αριστερό χέρι: πεντάγραμμο (0 = κανένα)",
+            "Hand": "Χέρι",
+            "Span thumb - little finger (cm)": "Άνοιγμα αντίχειρα - μικρού δαχτύλου (cm)",
+            "Child's hand (less mobility)": "Παιδικό χέρι (μικρότερη κινητικότητα)",
+            "Keep existing fingerings": "Διατήρηση υπαρχουσών δακτυλοθεσιών",
+            "Repeated notes: write the finger only when it changes": "Επαναλαμβανόμενες νότες: δάχτυλο μόνο όταν αλλάζει",
+            "Selection only": "Μόνο η επιλογή",
+            "Stop": "Διακοπή",
+            "Close": "Κλείσιμο",
+            "Apply": "Εφαρμογή"
+        };
+        case "ru": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Расставляет фортепианную аппликатуру (1-5) для правой и левой руки в открытой партитуре.",
+            "Child, 5-8 years (14.5 cm)": "Ребёнок, 5-8 лет (14,5 см)",
+            "Child, 9-12 years (17 cm)": "Ребёнок, 9-12 лет (17 см)",
+            "Small hand (19 cm)": "Маленькая рука (19 см)",
+            "Woman (20 cm)": "Женщина (20 см)",
+            "Man (22.5 cm)": "Мужчина (22,5 см)",
+            "Large hand (24 cm)": "Большая рука (24 см)",
+            "Custom...": "Пользовательская...",
+            "Version %1": "Версия %1",
+            "No open score found.": "Открытая партитура не найдена.",
+            "Staves in score: %1": "Нотных станов в партитуре: %1",
+            "Error: %1": "Ошибка: %1",
+            "a fourth": "кварта",
+            "a fifth": "квинта",
+            "a sixth": "секста",
+            "a seventh": "септима",
+            "an octave": "октава",
+            "a ninth": "нона",
+            "a tenth": "децима",
+            "an eleventh": "ундецима",
+            "Reaches less than a fourth.": "Охват меньше кварты.",
+            "Reaches %1 at most.": "Максимальный охват: %1.",
+            "Reaches %1 at most, %2 comfortably.": "Максимальный охват: %1, удобный: %2.",
+            "No range selection found.": "Выделение диапазона не найдено.",
+            "staff %1 is outside the selection": "нотный стан %1 вне выделения",
+            "staff %1 is a percussion staff": "нотный стан %1 — ударный",
+            "Nothing to do.": "Нечего делать.",
+            "Nothing to do (%1).": "Нечего делать (%1).",
+            "No notes found.": "Ноты не найдены.",
+            "Calculating...": "Вычисление...",
+            "stopped by user": "остановлено пользователем",
+            "Stopped. Nothing was written.": "Остановлено. Ничего не записано.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Готово. Добавлено аппликатур: %1 (отмена: Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "Нот с пользовательской аппликатурой оставлено без изменений: %1.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "Мест, где не удалось соблюсти все физические ограничения (существующая аппликатура, удерживаемая нота или слишком широкий аккорд): %1. Проверьте их.",
+            "Right hand: staff": "Правая рука: нотный стан",
+            "Left hand: staff (0 = none)": "Левая рука: нотный стан (0 = нет)",
+            "Hand": "Рука",
+            "Span thumb - little finger (cm)": "Растяжка от большого пальца до мизинца (см)",
+            "Child's hand (less mobility)": "Детская рука (меньшая подвижность)",
+            "Keep existing fingerings": "Сохранять существующую аппликатуру",
+            "Repeated notes: write the finger only when it changes": "Повторяющиеся ноты: писать палец только при смене",
+            "Selection only": "Только выделение",
+            "Stop": "Стоп",
+            "Close": "Закрыть",
+            "Apply": "Применить"
+        };
+        case "uk": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "Розставляє фортепіанну аплікатуру (1-5) для правої та лівої руки у відкритій партитурі.",
+            "Child, 5-8 years (14.5 cm)": "Дитина, 5-8 років (14,5 см)",
+            "Child, 9-12 years (17 cm)": "Дитина, 9-12 років (17 см)",
+            "Small hand (19 cm)": "Маленька рука (19 см)",
+            "Woman (20 cm)": "Жінка (20 см)",
+            "Man (22.5 cm)": "Чоловік (22,5 см)",
+            "Large hand (24 cm)": "Велика рука (24 см)",
+            "Custom...": "Власна...",
+            "Version %1": "Версія %1",
+            "No open score found.": "Відкриту партитуру не знайдено.",
+            "Staves in score: %1": "Нотних станів у партитурі: %1",
+            "Error: %1": "Помилка: %1",
+            "a fourth": "кварта",
+            "a fifth": "квінта",
+            "a sixth": "секста",
+            "a seventh": "септима",
+            "an octave": "октава",
+            "a ninth": "нона",
+            "a tenth": "децима",
+            "an eleventh": "ундецима",
+            "Reaches less than a fourth.": "Охоплення менше за кварту.",
+            "Reaches %1 at most.": "Максимальне охоплення: %1.",
+            "Reaches %1 at most, %2 comfortably.": "Максимальне охоплення: %1, зручне: %2.",
+            "No range selection found.": "Виділення діапазону не знайдено.",
+            "staff %1 is outside the selection": "нотний стан %1 поза виділенням",
+            "staff %1 is a percussion staff": "нотний стан %1 — ударний",
+            "Nothing to do.": "Нічого робити.",
+            "Nothing to do (%1).": "Нічого робити (%1).",
+            "No notes found.": "Ноти не знайдено.",
+            "Calculating...": "Обчислення...",
+            "stopped by user": "зупинено користувачем",
+            "Stopped. Nothing was written.": "Зупинено. Нічого не записано.",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "Готово. Додано аплікатур: %1 (скасування: Ctrl+Z).",
+            "%1 note(s) with custom fingerings left untouched.": "Нот із власною аплікатурою залишено без змін: %1.",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "Місць, де не вдалося дотриматися всіх фізичних обмежень (наявна аплікатура, утримувана нота або занадто широкий акорд): %1. Перевірте їх.",
+            "Right hand: staff": "Права рука: нотний стан",
+            "Left hand: staff (0 = none)": "Ліва рука: нотний стан (0 = немає)",
+            "Hand": "Рука",
+            "Span thumb - little finger (cm)": "Розтяжка від великого пальця до мізинця (см)",
+            "Child's hand (less mobility)": "Дитяча рука (менша рухливість)",
+            "Keep existing fingerings": "Зберігати наявну аплікатуру",
+            "Repeated notes: write the finger only when it changes": "Повторювані ноти: писати палець лише при зміні",
+            "Selection only": "Лише виділення",
+            "Stop": "Стоп",
+            "Close": "Закрити",
+            "Apply": "Застосувати"
+        };
+        case "zh_CN": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "为打开的乐谱插入左右手的钢琴指法（1-5）。",
+            "Child, 5-8 years (14.5 cm)": "儿童，5-8 岁（14.5 厘米）",
+            "Child, 9-12 years (17 cm)": "儿童，9-12 岁（17 厘米）",
+            "Small hand (19 cm)": "小手（19 厘米）",
+            "Woman (20 cm)": "女性（20 厘米）",
+            "Man (22.5 cm)": "男性（22.5 厘米）",
+            "Large hand (24 cm)": "大手（24 厘米）",
+            "Custom...": "自定义...",
+            "Version %1": "版本 %1",
+            "No open score found.": "未找到打开的乐谱。",
+            "Staves in score: %1": "乐谱中的谱表数：%1",
+            "Error: %1": "错误：%1",
+            "a fourth": "四度",
+            "a fifth": "五度",
+            "a sixth": "六度",
+            "a seventh": "七度",
+            "an octave": "八度",
+            "a ninth": "九度",
+            "a tenth": "十度",
+            "an eleventh": "十一度",
+            "Reaches less than a fourth.": "跨度不足四度。",
+            "Reaches %1 at most.": "最大跨度：%1。",
+            "Reaches %1 at most, %2 comfortably.": "最大跨度：%1，舒适跨度：%2。",
+            "No range selection found.": "未找到范围选择。",
+            "staff %1 is outside the selection": "谱表 %1 不在选区内",
+            "staff %1 is a percussion staff": "谱表 %1 是打击乐谱表",
+            "Nothing to do.": "无需处理。",
+            "Nothing to do (%1).": "无需处理（%1）。",
+            "No notes found.": "未找到音符。",
+            "Calculating...": "正在计算...",
+            "stopped by user": "已被用户停止",
+            "Stopped. Nothing was written.": "已停止，未写入任何内容。",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "完成：已插入 %1 个指法（按 Ctrl+Z 撤销）。",
+            "%1 note(s) with custom fingerings left untouched.": "%1 个带有自定义指法的音符保持不变。",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "有 %1 处无法满足所有生理限制（已有指法、保持音或和弦过宽），请检查。",
+            "Right hand: staff": "右手：谱表",
+            "Left hand: staff (0 = none)": "左手：谱表（0 = 无）",
+            "Hand": "手型",
+            "Span thumb - little finger (cm)": "拇指至小指跨度（厘米）",
+            "Child's hand (less mobility)": "儿童的手（灵活性较低）",
+            "Keep existing fingerings": "保留已有指法",
+            "Repeated notes: write the finger only when it changes": "重复音：仅在换指时标注",
+            "Selection only": "仅限选区",
+            "Stop": "停止",
+            "Close": "关闭",
+            "Apply": "应用"
+        };
+        case "zh_TW": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "為開啟的樂譜插入左右手的鋼琴指法（1-5）。",
+            "Child, 5-8 years (14.5 cm)": "兒童，5-8 歲（14.5 公分）",
+            "Child, 9-12 years (17 cm)": "兒童，9-12 歲（17 公分）",
+            "Small hand (19 cm)": "小手（19 公分）",
+            "Woman (20 cm)": "女性（20 公分）",
+            "Man (22.5 cm)": "男性（22.5 公分）",
+            "Large hand (24 cm)": "大手（24 公分）",
+            "Custom...": "自訂...",
+            "Version %1": "版本 %1",
+            "No open score found.": "找不到已開啟的樂譜。",
+            "Staves in score: %1": "樂譜中的譜表數：%1",
+            "Error: %1": "錯誤：%1",
+            "a fourth": "四度",
+            "a fifth": "五度",
+            "a sixth": "六度",
+            "a seventh": "七度",
+            "an octave": "八度",
+            "a ninth": "九度",
+            "a tenth": "十度",
+            "an eleventh": "十一度",
+            "Reaches less than a fourth.": "跨度不足四度。",
+            "Reaches %1 at most.": "最大跨度：%1。",
+            "Reaches %1 at most, %2 comfortably.": "最大跨度：%1，舒適跨度：%2。",
+            "No range selection found.": "找不到範圍選取。",
+            "staff %1 is outside the selection": "譜表 %1 不在選取範圍內",
+            "staff %1 is a percussion staff": "譜表 %1 是打擊樂譜表",
+            "Nothing to do.": "無需處理。",
+            "Nothing to do (%1).": "無需處理（%1）。",
+            "No notes found.": "找不到音符。",
+            "Calculating...": "計算中...",
+            "stopped by user": "已由使用者停止",
+            "Stopped. Nothing was written.": "已停止，未寫入任何內容。",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "完成：已插入 %1 個指法（按 Ctrl+Z 復原）。",
+            "%1 note(s) with custom fingerings left untouched.": "%1 個帶有自訂指法的音符保持不變。",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "有 %1 處無法滿足所有生理限制（既有指法、保持音或和弦過寬），請檢查。",
+            "Right hand: staff": "右手：譜表",
+            "Left hand: staff (0 = none)": "左手：譜表（0 = 無）",
+            "Hand": "手型",
+            "Span thumb - little finger (cm)": "拇指至小指跨度（公分）",
+            "Child's hand (less mobility)": "兒童的手（靈活度較低）",
+            "Keep existing fingerings": "保留既有指法",
+            "Repeated notes: write the finger only when it changes": "重複音：僅在換指時標註",
+            "Selection only": "僅限選取範圍",
+            "Stop": "停止",
+            "Close": "關閉",
+            "Apply": "套用"
+        };
+        case "ja": return {
+            "Inserts piano fingering (1-5) for the right and left hand into the open score.": "開いている楽譜に右手と左手のピアノ運指（1-5）を挿入します。",
+            "Child, 5-8 years (14.5 cm)": "子ども、5～8歳（14.5 cm）",
+            "Child, 9-12 years (17 cm)": "子ども、9～12歳（17 cm）",
+            "Small hand (19 cm)": "小さい手（19 cm）",
+            "Woman (20 cm)": "女性（20 cm）",
+            "Man (22.5 cm)": "男性（22.5 cm）",
+            "Large hand (24 cm)": "大きい手（24 cm）",
+            "Custom...": "カスタム...",
+            "Version %1": "バージョン %1",
+            "No open score found.": "開いている楽譜が見つかりません。",
+            "Staves in score: %1": "楽譜内の譜表数: %1",
+            "Error: %1": "エラー: %1",
+            "a fourth": "4度",
+            "a fifth": "5度",
+            "a sixth": "6度",
+            "a seventh": "7度",
+            "an octave": "オクターブ",
+            "a ninth": "9度",
+            "a tenth": "10度",
+            "an eleventh": "11度",
+            "Reaches less than a fourth.": "届く範囲は4度未満です。",
+            "Reaches %1 at most.": "最大で%1まで届きます。",
+            "Reaches %1 at most, %2 comfortably.": "最大で%1、無理なく%2まで届きます。",
+            "No range selection found.": "範囲選択が見つかりません。",
+            "staff %1 is outside the selection": "譜表 %1 は選択範囲外です",
+            "staff %1 is a percussion staff": "譜表 %1 は打楽器譜表です",
+            "Nothing to do.": "処理対象がありません。",
+            "Nothing to do (%1).": "処理対象がありません（%1）。",
+            "No notes found.": "音符が見つかりません。",
+            "Calculating...": "計算中...",
+            "stopped by user": "ユーザーにより停止",
+            "Stopped. Nothing was written.": "停止しました。何も書き込まれていません。",
+            "Done: %1 fingerings inserted (undo with Ctrl+Z).": "完了: %1 個の運指を挿入しました（Ctrl+Z で元に戻せます）。",
+            "%1 note(s) with custom fingerings left untouched.": "カスタム運指のある %1 個の音符はそのままにしました。",
+            "%1 place(s) could not satisfy every physical constraint (existing fingering, held note or chord too wide): please check them.": "%1 か所で物理的な制約（既存の運指、保持音、または広すぎる和音）をすべて満たせませんでした。確認してください。",
+            "Right hand: staff": "右手: 譜表",
+            "Left hand: staff (0 = none)": "左手: 譜表（0 = なし）",
+            "Hand": "手",
+            "Span thumb - little finger (cm)": "親指～小指の開き（cm）",
+            "Child's hand (less mobility)": "子どもの手（可動域が小さい）",
+            "Keep existing fingerings": "既存の運指を保持",
+            "Repeated notes: write the finger only when it changes": "同音連打: 指が変わるときだけ記入",
+            "Selection only": "選択範囲のみ",
+            "Stop": "停止",
+            "Close": "閉じる",
+            "Apply": "適用"
+        };
+        }
+        return null;
+    }
+
 
     // ---------------------------------------------------------------- embedded JavaScript
     // Smart Piano Fingering core (algorithm version 2: hybrid musical + biomechanical)

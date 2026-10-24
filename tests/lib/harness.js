@@ -8,7 +8,8 @@
 // The production plugin is a dialog that waits for a click on "Apply". For the tests we
 // generate a COPY of smart-piano-fingering.qml in which
 //   1. pluginType: "dialog" is removed (so MuseScore runs onRun and returns), and
-//   2. onRun ends with a test hook that sets the dialog controls (hands, size, keep, compact repeated notes, selection),
+//   2. the dialog language is forced to English (languageOverride), and
+//   3. onRun ends with a test hook that sets the dialog controls (hands, size, keep, compact repeated notes, selection),
 //      calls the plugin's own applyFingering()/runSlice() synchronously, and stores the dialog's
 //      status message in the score's "workNumber" so the tests can read it from the export.
 // Everything else (QML tree, embedded core, adapter, MuseScore API calls) is production code.
@@ -22,7 +23,9 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 const { parseNotes, readStatus } = require("./musicxml");
 
-const ANCHOR_RUN = 'status.text = n === 0 ? qsTr("No open score found.") : qsTr("Staves in score: ") + n;';
+const ANCHOR_RUN = 'status.text = n === 0 ? tr("No open score found.") : tr("Staves in score: %1").arg(n);';
+// The scenarios read the English status messages, whatever the language of MuseScore.
+const ANCHOR_LANGUAGE = 'property string languageOverride: ""';
 const ANCHOR_ADAPTER = "division: division, newElement: newElement";
 
 function createHarness(opts) {
@@ -128,6 +131,12 @@ function createHarness(opts) {
         // cfg is local to onRun; make it visible to applyFingering through a property
         src = src.replace("        var cfg = ", "        cfg = ");
         src = src.replace("    property int spfNewElementCalls: 0", "    property int spfNewElementCalls: 0\n    property var cfg: ({})");
+
+        if (src.split(ANCHOR_LANGUAGE).length !== 2) {
+            throw new Error("Cannot force the English UI: languageOverride not found exactly once. " +
+                "Update ANCHOR_LANGUAGE in tests/lib/harness.js.");
+        }
+        src = src.replace(ANCHOR_LANGUAGE, 'property string languageOverride: "en"');
 
         const before = src;
         src = src.replace(/^[ \t]*pluginType:\s*"dialog"[ \t]*$/m, "");

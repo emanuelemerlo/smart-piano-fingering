@@ -16,6 +16,8 @@ MuseScore plugin that calculates and inserts piano fingering numbers (`1`–`5`)
 - **Cross-staff notes** are assigned to the staff where they are displayed, so they receive the correct hand.
 - Responsive dialog: progress bar and a **Stop** button; nothing is written to the score until the calculation is complete.
 - One undo step (`Ctrl+Z` / `Cmd+Z`) reverts the whole operation.
+- **Dialog in your language**: it follows the language of MuseScore's interface (English, German, French, Italian, Spanish, Portuguese, Dutch, Polish, Czech, Swedish, Danish, Norwegian, Finnish, Hungarian, Romanian, Greek, Russian, Ukrainian, Chinese (Simplified and Traditional), Japanese); other languages fall back to English.
+- The plugin **version** is always shown in the top-right corner of the dialog: please include it when you report an issue.
 
 ## Requirements
 
