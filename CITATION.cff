@@ -5,8 +5,8 @@ authors:
   - family-names: Merlo
     given-names: Emanuele
     affiliation: Independent developer
-version: 2.2.0
-date-released: 2026-10-15
+version: 2.3.0
+date-released: 2026-10-24
 license: GPL-3.0-only
 type: software
 repository-code: "https://github.com/emanuelemerlo/smart-piano-fingering"
