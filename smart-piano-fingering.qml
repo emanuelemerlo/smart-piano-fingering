@@ -27,7 +27,7 @@ MuseScore {
     description: tr("Inserts piano fingering (1-5) for the right and left hand into the open score.")
     menuPath: "Plugins.SmartPianoFingering"   // MuseScore 3 only; ignored by MuseScore 4
     title: "Smart Piano Fingering"
-    categoryCode: "Piano fingering"
+    categoryCode: "composing-arranging-tools"
     thumbnailName: "smart-piano-fingering.png"
     pluginType: "dialog"
     requiresScore: true
