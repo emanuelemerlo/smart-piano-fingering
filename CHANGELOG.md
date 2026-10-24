@@ -6,16 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-24
+
 ### Added
 - **Localised dialog.** The dialog, its messages and the plugin description follow the language of
   MuseScore's interface (MuseScore passes it to `QLocale::setDefault`, read by the plugin through
-  `Qt.locale()`), with English as fallback: German, French, Italian, Spanish, Portuguese, Dutch, Polish, Czech, Swedish, Danish, Norwegian, Finnish, Hungarian, Romanian, Greek, Russian, Ukrainian, Chinese (Simplified and Traditional) and Japanese. Regional variants map to
+  `Qt.locale()`), with English as fallback: German, French, Italian, Spanish, Portuguese, Dutch,
+  Polish, Czech, Swedish, Danish, Norwegian, Finnish, Hungarian, Romanian, Greek, Russian,
+  Ukrainian, Chinese (Simplified and Traditional) and Japanese. Regional variants map to
   their language (`pt_BR` → Portuguese, `nn_NO` → Norwegian, `zh_HK` → Traditional Chinese). The
   translations are embedded in the QML file, so the plugin is still a single file.
   `tests/qml-compat-check.js` checks that every language has every string with the same
   placeholders, and the runtime tests force the English dialog.
-- **Plugin version in the dialog**: a badge in the top-right corner (for example *Version 2.2.0*,
-  *Versione 2.2.0*), so a screenshot of the dialog tells which version is installed.
+- **Plugin version in the dialog**: a badge in the top-right corner (for example *Version 2.3.0*,
+  *Versione 2.3.0*), so a screenshot of the dialog tells which version is installed.
 - `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) and an **Unnatural fingering** issue template.
 - **Release workflow** (`.github/workflows/release.yml`): pushing a tag `vX.Y.Z` checks that the
   version is the same in the QML file, `docs/README.txt` and `CHANGELOG.md`, runs the Node and
@@ -26,6 +30,9 @@ All notable changes to this project are documented here. The format follows
   which can also be run locally.
 
 ### Changed
+- The plugin is listed in MuseScore's standard **Composing/arranging tools** category in every
+  MuseScore 4 version (it was a custom "Piano fingering" category before MuseScore 4.4).
+- The dialog checkboxes wrap their text instead of widening the dialog.
 - The cross-platform test workflow runs on branch pushes and pull requests; for version tags it is
   run by the release workflow.
 

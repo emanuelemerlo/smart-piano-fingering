@@ -71,6 +71,6 @@ body:
     id: versions
     attributes:
       label: Plugin and MuseScore version
-      placeholder: e.g. plugin 2.2.0, MuseScore 4.x.y
+      placeholder: e.g. plugin 2.3.0, MuseScore 4.x.y
     validations:
       required: true

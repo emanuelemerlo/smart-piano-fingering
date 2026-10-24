@@ -23,7 +23,7 @@ import QtQuick.Layouts 1.3
 import MuseScore 3.0
 
 MuseScore {
-    version: "2.2.0"
+    version: "2.3.0"
     description: tr("Inserts piano fingering (1-5) for the right and left hand into the open score.")
     menuPath: "Plugins.SmartPianoFingering"   // MuseScore 3 only; ignored by MuseScore 4
     title: "Smart Piano Fingering"
@@ -36,10 +36,6 @@ MuseScore {
 
     Component.onCompleted: {
         versionLabel.text = tr("Version %1").arg(version);
-        if (mscoreMajorVersion > 4 || (mscoreMajorVersion === 4 && mscoreMinorVersion >= 4)) {
-            title = qsTr("Smart Piano Fingering");
-            categoryCode = "composing-arranging-tools";
-        }
     }
 
     // Hand profiles (ids of HAND_PROFILES in the core) and the custom hand, in dialog order.
