@@ -138,9 +138,20 @@ node tests/run-tests.js --report   # also writes tests/REPORT.md
 node tests/compare-legacy.js       # writes tests/COMPARISON.md (1.1.0 vs current)
 node tests/qml-compat-check.js     # static QML checks and version consistency
 node tests/musescore-runtime.js --musescore <path to MuseScore executable>   # needs MuseScore 4
+PIG_DATASET=<folder> node tests/pig/evaluate.js   # comparison with the PIG Dataset (not included)
 ```
 
 The tests extract the embedded JavaScript from the QML file and run it against a mock score. They verify the algorithm against a reference suite of standard fingerings (classified as canonical, acceptable variant, non-standard or physically impossible by an independent checker), structural invariants on random material, and the adapter logic (unisons, ties, tuplets, cross-staff, selection window, keep/replace rules). These Node tests do not use MuseScore. `tests/musescore-runtime.js` runs the real plugin inside MuseScore 4 (headless, on a test copy of the QML without the dialog) and checks the exported score; the CI runs it on Windows, macOS and Linux. The dialog itself (buttons, progress bar, Stop) and Undo are not covered, so a manual check is still required before a release; see [`tests/README.md`](tests/README.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Comparison with pianists' fingerings
+
+The plugin's output has been compared with the fingerings written by pianists in the
+[PIG Dataset](https://beam.kisarazu.ac.jp/research/PianoFingeringDataset/) (Nakamura, Saito,
+Yoshii, *Statistical Learning and Estimation of Piano Fingering*, Information Sciences 517, 2020).
+On the 30 pieces fingered by four to six pianists each (Bach, Mozart, Chopin), the plugin agrees
+with an average pianist on about 62% of the notes and with at least one of them on about 83%;
+pianists agree with each other on about 72% and 91%. Details and method in
+[`tests/pig/RESULTS.md`](tests/pig/RESULTS.md). The dataset is not distributed with this project.
 
 ## License
 

@@ -10,3 +10,20 @@ date-released: 2026-10-24
 license: GPL-3.0-only
 type: software
 repository-code: "https://github.com/emanuelemerlo/smart-piano-fingering"
+references:
+  - type: article
+    title: "Statistical Learning and Estimation of Piano Fingering"
+    authors:
+      - family-names: Nakamura
+        given-names: Eita
+      - family-names: Saito
+        given-names: Yasuyuki
+      - family-names: Yoshii
+        given-names: Kazuyoshi
+    journal: "Information Sciences"
+    volume: 517
+    start: 68
+    end: 85
+    year: 2020
+    doi: "10.1016/j.ins.2019.12.068"
+    notes: "PIG Dataset, used to evaluate the plugin (not distributed with it)"

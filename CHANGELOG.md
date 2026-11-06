@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Comparison with the PIG Dataset** (Nakamura, Saito, Yoshii, Information Sciences 517, 2020):
+  `tests/pig/evaluate.js` reads the dataset from a local folder (`PIG_DATASET`, never committed)
+  and computes the paper's match rates (M_gen, M_high, M_soft), the agreement between pianists as
+  a ceiling, and a breakdown by context. Results in `tests/pig/RESULTS.md`. The authors are
+  credited in `THIRD_PARTY_NOTICES.md`, `README.md` and `CITATION.cff`.
+
+### Changed
+- The five-finger position habit is weaker (`patternDev.five` 6 → 1.5): pianists leave the
+  position more readily than the plugin did. Chosen on the 120 single-pianist pieces, confirmed
+  on the 30 multi-pianist pieces (M_gen 61.5 → 61.9, M_soft 82.6 → 83.2). The musical reference
+  suite is unchanged (313/313).
+
 ## [2.3.0] - 2026-10-24
 
 ### Added

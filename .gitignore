@@ -14,3 +14,7 @@ Thumbs.db
 
 # Release package built by .github/scripts/build-release.sh
 dist/
+
+# PIG Dataset and local evaluation output: never committed (nonprofit academic use only)
+PianoFingeringDataset*/
+pig-details/

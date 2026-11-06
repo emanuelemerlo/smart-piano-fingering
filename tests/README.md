@@ -9,6 +9,7 @@
 | `lib/` | Score builder/parser (`musicxml.js`), test scores (`fixtures.js`), MuseScore runner (`harness.js`) | - |
 | `golden/` | Saved fingering for a few scores, to detect any change of the algorithm | - |
 | `fixtures/smoke.musicxml` | Small hand-written score | - |
+| `pig/evaluate.js` | Comparison with the pianists' fingerings of the PIG Dataset (needs the dataset, see `pig/RESULTS.md`) | no |
 
 ## How the runtime tests work
 

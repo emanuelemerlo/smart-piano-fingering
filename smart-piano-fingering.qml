@@ -1617,8 +1617,11 @@ MuseScore {
 
             // Cost of NOT using the finger proposed by a pattern, multiplied by its confidence.
             // Scales are the most codified fingerings of piano technique, then arpeggios; chord
-            // shapes and five-finger positions are only habits and are kept weak.
-            patternDev: { scale: 25, arpeggio: 18, chromatic: 12, pentatonic: 10, chord: 8, five: 6, broken: 6 },
+            // shapes and five-finger positions are only habits and are kept weak. The five-finger
+            // position (1.5) was lowered from 6 after the comparison with the PIG Dataset (see
+            // tests/pig/): pianists leave the position more readily than the plugin did, and the
+            // weaker habit raised the agreement on both its training and test pieces.
+            patternDev: { scale: 25, arpeggio: 18, chromatic: 12, pentatonic: 10, chord: 8, five: 1.5, broken: 6 },
             // A finger listed by the pattern as an accepted variant costs this fraction of patternDev.
             altFactor: 0.25,
 
