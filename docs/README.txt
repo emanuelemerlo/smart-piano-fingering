@@ -1,7 +1,7 @@
-SMART PIANO FINGERING 2.3.0
+SMART PIANO FINGERING 2.4.0
 ===========================
 
-Release date: 24 October 2026
+Release date: 6 November 2026
 
 Smart Piano Fingering is a MuseScore 4 plugin that writes piano fingering
 (1-5) into your score for the right and the left hand.
@@ -14,8 +14,26 @@ music leaves a real choice does it pick the most comfortable option for your
 hand.
 
 
-WHAT'S NEW IN 2.3.0
+WHAT'S NEW IN 2.4.0
 -------------------
+
+  - Compared with real pianists. The fingering has been checked against
+    the PIG Dataset (Nakamura, Saito and Yoshii, Information Sciences 517,
+    2020): 150 classical pieces fingered by pianists. On the 30 pieces
+    fingered by four to six pianists each (Bach, Mozart, Chopin), the
+    plugin agrees with an average pianist on about 62% of the notes and
+    with at least one of them on about 83%. Pianists agree with each other
+    on about 72% and 91%.
+  - More natural thumb passages. The comparison showed that the plugin
+    stayed in a five-finger position (and so used the 4th and 5th fingers)
+    more often than pianists do. It now passes the thumb or moves the hand
+    more readily. Scales, arpeggios and the other standard fingerings are
+    unchanged.
+  - The dataset is not distributed with the plugin. We thank its authors.
+
+
+NEW IN 2.3.0
+------------
 
   - The dialog speaks your language. It follows the language of
     MuseScore's interface: German, French, Italian, Spanish, Portuguese,

@@ -39,7 +39,7 @@ content and must stay out of the repository (`pig-details/` is in `.gitignore`).
 |---|---|---|---|
 | Pianists vs each other (ceiling) | 71.6 | 77.5 | 90.8 |
 | Plugin 2.3.0 (woman) | 61.5 | 67.3 | 82.6 |
-| **Plugin, five-finger habit 6 → 1.5 (woman)** | **61.9** | **67.0** | **83.2** |
+| **Plugin 2.4.0, five-finger habit 6 → 1.5 (woman)** | **61.9** | **67.0** | **83.2** |
 | *Paper: 3rd-order HMM (trained)* | *64.5* | *71.0* | *85.5* |
 | *Paper: 1st-order HMM / chord HMM / LSTM* | *61.7 / 61.2 / 61.3* | *68.3 / 67.7 / 66.1* | *82.8 / 81.7 / 82.8* |
 

@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-06
+
 ### Added
 - **Comparison with the PIG Dataset** (Nakamura, Saito, Yoshii, Information Sciences 517, 2020):
   `tests/pig/evaluate.js` reads the dataset from a local folder (`PIG_DATASET`, never committed)
