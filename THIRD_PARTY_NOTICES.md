@@ -37,3 +37,19 @@ SOFTWARE.
 
 MIT-licensed code is compatible with distribution under GPL-3.0-only; this notice is kept
 alongside the project's own `LICENSE`.
+
+## PIG Dataset (evaluation only)
+
+The fingering algorithm is evaluated against the **PIG Dataset** (Piano Fingering Dataset) by
+Eita Nakamura, Yasuyuki Saito and Kazuyoshi Yoshii
+(https://beam.kisarazu.ac.jp/research/PianoFingeringDataset/), as described in:
+
+E. Nakamura, Y. Saito, K. Yoshii, "Statistical Learning and Estimation of Piano Fingering",
+*Information Sciences*, vol. 517, pp. 68-85, 2020. https://doi.org/10.1016/j.ins.2019.12.068
+(arXiv:1904.10237)
+
+The dataset is available for nonprofit academic use and is **not** included in this repository
+or in the plugin: `tests/pig/` only contains the code that reads it and the aggregate results
+(match rates), never notes or fingerings from the dataset. The plugin is not trained on the data;
+one weight of the algorithm (the five-finger position habit) was lowered after the comparison.
+We thank the authors for providing the dataset.
